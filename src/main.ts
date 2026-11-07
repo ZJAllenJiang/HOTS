@@ -1,0 +1,25 @@
+import './style.css';
+import {createGame,command,step} from './sim';
+import {createRenderer} from './render';
+import {mountUI} from './ui';
+import type {Hero,Mode,Key} from './contracts';
+const game=document.querySelector<HTMLElement>('#game')!;
+const root=document.querySelector<HTMLElement>('#ui')!;
+let mode:Mode='training',hero:Hero='ranger';
+let state=createGame(mode,hero);state.paused=true;
+const renderer=createRenderer(game);
+let aim={x:0,z:0};let armed:Key|null=null;
+const active=()=>!root.classList.contains('is-lobby')&&!state.paused&&state.winner===null;
+function start(m:Mode,h:Hero){mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;}
+const ui=mountUI(root,{start,pause:()=>{state.paused=!state.paused;},cast:key=>{if(active())armed=key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
+const abort=new AbortController();const signal=abort.signal;
+game.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
+game.addEventListener('pointermove',e=>{aim=renderer.pick(e.clientX,e.clientY);},{signal});
+game.addEventListener('pointerdown',e=>{if(!active())return;e.preventDefault();aim=renderer.pick(e.clientX,e.clientY);if(armed&&e.button===0){command(state,{type:'cast',key:armed,...aim});armed=null;return;}armed=null;const enemy=state.units.filter(u=>u.team===1&&u.alive&&Math.hypot(u.x-aim.x,u.z-aim.z)<1.5).sort((a,b)=>Math.hypot(a.x-aim.x,a.z-aim.z)-Math.hypot(b.x-aim.x,b.z-aim.z))[0];if(enemy)command(state,{type:'attack',id:enemy.id});else if(e.button===2||e.pointerType==='touch')command(state,{type:'move',...aim});},{signal});
+game.addEventListener('wheel',e=>{e.preventDefault();renderer.zoom(e.deltaY);},{passive:false,signal});
+document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,textarea,select,button'))return;const k=e.key.toLowerCase();if(k==='escape'&&!root.classList.contains('is-lobby')){armed=null;state.paused=!state.paused;return;}if(!active())return;if(['q','w','e','r'].includes(k)){e.preventDefault();command(state,{type:'cast',key:k as Key,...aim});}if(k==='s')command(state,{type:'stop'});},{signal});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)state.paused=true;},{signal});
+let last=performance.now(),acc=0,frame=0;
+function loop(now:number){const dt=Math.min(.2,(now-last)/1000);last=now;if(active()){acc+=dt;while(acc>=.05){step(state,.05);acc-=.05;}}else acc=0;renderer.update(state,dt);ui.update(state);frame=requestAnimationFrame(loop);}frame=requestAnimationFrame(loop);
+Object.defineProperty(window,'__HOTS_DIAGNOSTICS__',{get:()=>({tick:state.tick,mode:state.mode,units:state.units.length,paused:state.paused,winner:state.winner,player:state.units.find(u=>u.id===state.playerId),prototype:true})});
+if(import.meta.hot)import.meta.hot.dispose(()=>{abort.abort();cancelAnimationFrame(frame);renderer.dispose();ui.destroy();});
