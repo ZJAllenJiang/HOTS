@@ -6,7 +6,7 @@ TypeScript + Three.js 的单线战斗开发原型。它用于验证浏览器输�
 
 ## 在线试玩
 
-已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。模型仍是占位模型，原作英雄尚未完成。
+已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。吉安娜已接入带贴图和动画的 HOTS 社区移植模型；其余英雄仍为占位模型，技能仍为原型。
 
 右键或 Mac Control + 单击移动/攻击，左键攻击；触控板模式支持左键移动。右下角可选画质与操作方式。Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
 
@@ -50,4 +50,4 @@ npm run build
 
 ## 3D 修正进度
 
-见 [3D、模型与节奏修正记录](docs/changes/2026-11-08-3d-correction.md)。真实英雄素材是当前首要阻塞项；支持导入模型不等于已完成 HOTS 英雄还原。
+见 [3D、模型与节奏修正记录](docs/changes/2026-11-08-3d-correction.md)。吉安娜模型候选已完成转换、格式和离线画面检查，并部署到第三版。详见 [模型接入记录](docs/assets/jaina-integration.md)。原版技能、特效和真实 Mac/Windows 浏览器验收仍未完成。

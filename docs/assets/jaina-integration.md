@@ -9,3 +9,11 @@ Evidence: official validator reports zero errors/warnings; independent Three.js 
 Limits: this is a modified WC3 port, not native M3 fidelity. Some additional rotations are normalized, Warcraft III particle/glow layers are excluded, and gameplay skills remain the prototype frost kit. The UI explicitly labels the model trial. Default-load failure displays a visible warning before relying on a procedural 3D placeholder.
 
 Actual browser 3D appearance, attack timing/clip synchronization, ten-actor GPU performance and physical Mac/Windows behavior still require acceptance. The CPU render is asset QA, not a gameplay screenshot or FPS measurement. Other heroes, native spell effects and original kits remain unfinished.
+
+## Version 3 publication
+
+Successfully deployed: https://hots-aram-lab.zjallenjiang.chatgpt.site
+
+GitHub runtime `4df072c525a2001e195e0f9677b87e057eeb6f1b`; Site source `3c5fd0399b4fb1876e0dbe4edc19e3512ab0c033`; deployment `appgdep_6af05900eaf4819187a34b6775ea9052`. Saved version `appgprj_6aedf88c8b108191917a049f4b70cbea~appgver_a07325bb035c8191a3f91faf5453bcc2`. GitHub Actions run `42474656395` passed on the runtime commit. Access configuration was preserved.
+
+The default frost slot uses the real model; the lobby image is an offline rendered preview, not a gameplay capture. Browser/GPU acceptance limits above remain in effect.
