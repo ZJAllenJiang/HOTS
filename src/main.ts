@@ -1,13 +1,20 @@
 import './style.css';
 import {createGame,command,step} from './sim';
 import {createRenderer} from './render';
+import {createFallbackRenderer} from './render2d';
 import {mountUI} from './ui';
-import type {Hero,Mode,Key} from './contracts';
+import type {Hero,Mode,Key,Renderer} from './contracts';
 const game=document.querySelector<HTMLElement>('#game')!;
 const root=document.querySelector<HTMLElement>('#ui')!;
 let mode:Mode='training',hero:Hero='ranger';
 let state=createGame(mode,hero);state.paused=true;
-const renderer=createRenderer(game);
+let renderer:Renderer;
+try { renderer=createRenderer(game); } catch {
+ game.replaceChildren(); renderer=createFallbackRenderer(game);
+ const notice=document.querySelector<HTMLElement>('#error')!; notice.hidden=false;
+ notice.textContent='兼容模式 · 当前浏览器未启用 WebGL，使用 2D 战场';
+ notice.style.cssText='position:fixed;bottom:5px;left:50%;transform:translateX(-50%);z-index:100;color:#aab8cb;font-size:11px;pointer-events:none';
+}
 let aim={x:0,z:0};let armed:Key|null=null;
 const active=()=>!root.classList.contains('is-lobby')&&!state.paused&&state.winner===null;
 function start(m:Mode,h:Hero){mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;}
