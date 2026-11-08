@@ -1,0 +1,282 @@
+{
+  "loadedBy": "Three r180 GLTFLoader (headless image decode via pngjs)",
+  "bytes": 2861560,
+  "embeddedImages": 1,
+  "externalURIs": 0,
+  "sourceVertices": 7255,
+  "loadedMeshes": 7,
+  "clips": 38,
+  "samples": [
+    {
+      "clip": "Stand - 1",
+      "duration": 1.9800000190734863,
+      "maxVertexDeviationConvertedUnits": 6.494245129710672e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.795883858012622e-7,
+      "maxVertexMovementConvertedUnits": 0.18602354158019194
+    },
+    {
+      "clip": "Stand - 2",
+      "duration": 4.617000102996826,
+      "maxVertexDeviationConvertedUnits": 5.982958007567536e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.8143248010088938e-7,
+      "maxVertexMovementConvertedUnits": 0.26860657490203843
+    },
+    {
+      "clip": "Stand - 3",
+      "duration": 4.1579999923706055,
+      "maxVertexDeviationConvertedUnits": 6.276335518336552e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.795883858012622e-7,
+      "maxVertexMovementConvertedUnits": 0.7647374420506255
+    },
+    {
+      "clip": "Stand - 4",
+      "duration": 2.5739998817443848,
+      "maxVertexDeviationConvertedUnits": 0.0000073358103850795,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.3552152338857478e-7,
+      "maxVertexMovementConvertedUnits": 0.4852324659225589
+    },
+    {
+      "clip": "Stand Ready",
+      "duration": 1.9800000190734863,
+      "maxVertexDeviationConvertedUnits": 0.0000012784331004764515,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.1767984887667813e-7,
+      "maxVertexMovementConvertedUnits": 0.28307835957575345
+    },
+    {
+      "clip": "Stand Victory",
+      "duration": 4.942999839782715,
+      "maxVertexDeviationConvertedUnits": 0.0000011646230618423753,
+      "maxNormalizedSourceDeviationConvertedUnits": 3.1700031933641357e-7,
+      "maxVertexMovementConvertedUnits": 2.539191811917238
+    },
+    {
+      "clip": "Walk",
+      "duration": 0.8220000267028809,
+      "maxVertexDeviationConvertedUnits": 0.0000012421535508200708,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.895402702849312e-7,
+      "maxVertexMovementConvertedUnits": 0.8846498409680429
+    },
+    {
+      "clip": "Attack - 1",
+      "duration": 1.399999976158142,
+      "maxVertexDeviationConvertedUnits": 6.931963664329011e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.2641665290499498e-7,
+      "maxVertexMovementConvertedUnits": 2.1931632946254975
+    },
+    {
+      "clip": "Attack - 2",
+      "duration": 1.600000023841858,
+      "maxVertexDeviationConvertedUnits": 0.0000013534346942394483,
+      "maxNormalizedSourceDeviationConvertedUnits": 3.556610758242237e-7,
+      "maxVertexMovementConvertedUnits": 1.6955895571947779
+    },
+    {
+      "clip": "Attack - 3",
+      "duration": 1,
+      "maxVertexDeviationConvertedUnits": 0.000001057148443321282,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.0944386192093496e-7,
+      "maxVertexMovementConvertedUnits": 2.059869780850382
+    },
+    {
+      "clip": "Attack - 4",
+      "duration": 1.399999976158142,
+      "maxVertexDeviationConvertedUnits": 0.0000015941539698742895,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.357345709662166e-7,
+      "maxVertexMovementConvertedUnits": 1.9512359109969426
+    },
+    {
+      "clip": "Attack - 5",
+      "duration": 1.100000023841858,
+      "maxVertexDeviationConvertedUnits": 0.0000011789109281824266,
+      "maxNormalizedSourceDeviationConvertedUnits": 5.081715235383152e-7,
+      "maxVertexMovementConvertedUnits": 1.952539320211277
+    },
+    {
+      "clip": "Attack Slam",
+      "duration": 0.8999999761581421,
+      "maxVertexDeviationConvertedUnits": 0.0000012237734244394498,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.890863325376507e-7,
+      "maxVertexMovementConvertedUnits": 1.3869912893609204
+    },
+    {
+      "clip": "Spell One First",
+      "duration": 2.5,
+      "maxVertexDeviationConvertedUnits": 0.0000013715707381209109,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.168005155995614e-7,
+      "maxVertexMovementConvertedUnits": 2.15146525740454
+    },
+    {
+      "clip": "Spell One Second",
+      "duration": 2.5,
+      "maxVertexDeviationConvertedUnits": 0.0000013715707381209109,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.168005155995614e-7,
+      "maxVertexMovementConvertedUnits": 2.15146525740454
+    },
+    {
+      "clip": "Spell Two",
+      "duration": 0.8999999761581421,
+      "maxVertexDeviationConvertedUnits": 7.922272272740088e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.6455059367961297e-7,
+      "maxVertexMovementConvertedUnits": 1.9185079546811
+    },
+    {
+      "clip": "Spell Three",
+      "duration": 1.2359999418258667,
+      "maxVertexDeviationConvertedUnits": 0.0000011082640112439576,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.880541461188211e-7,
+      "maxVertexMovementConvertedUnits": 1.130839049087957
+    },
+    {
+      "clip": "Spell Four",
+      "duration": 1.649999976158142,
+      "maxVertexDeviationConvertedUnits": 0.000006539230574658468,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.192333005764759e-7,
+      "maxVertexMovementConvertedUnits": 1.574828044421041
+    },
+    {
+      "clip": "Spell Five",
+      "duration": 1.7100000381469727,
+      "maxVertexDeviationConvertedUnits": 0.000001207509639233614,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.710360449552101e-7,
+      "maxVertexMovementConvertedUnits": 2.354154159085301
+    },
+    {
+      "clip": "Spell Throw One",
+      "duration": 1.0670000314712524,
+      "maxVertexDeviationConvertedUnits": 7.264318810239131e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.4187995029813783e-7,
+      "maxVertexMovementConvertedUnits": 1.3048402053566786
+    },
+    {
+      "clip": "Spell Throw Two",
+      "duration": 1.187000036239624,
+      "maxVertexDeviationConvertedUnits": 6.931963664329011e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 3.164992738316712e-7,
+      "maxVertexMovementConvertedUnits": 0.6778886090199899
+    },
+    {
+      "clip": "Spell Throw Three",
+      "duration": 1.069000005722046,
+      "maxVertexDeviationConvertedUnits": 0.0000014932595098582059,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.640900772574369e-7,
+      "maxVertexMovementConvertedUnits": 1.333420670668066
+    },
+    {
+      "clip": "Spell Throw Four",
+      "duration": 1.600000023841858,
+      "maxVertexDeviationConvertedUnits": 5.982958007567536e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.221080931696378e-7,
+      "maxVertexMovementConvertedUnits": 1.4962893973116378
+    },
+    {
+      "clip": "Spell Throw Five",
+      "duration": 1.0889999866485596,
+      "maxVertexDeviationConvertedUnits": 3.1991821921153215e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.0273468151696893e-7,
+      "maxVertexMovementConvertedUnits": 0.8749230697015556
+    },
+    {
+      "clip": "Spell Slam One",
+      "duration": 1.0759999752044678,
+      "maxVertexDeviationConvertedUnits": 9.084476490946555e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 3.7568979320914116e-7,
+      "maxVertexMovementConvertedUnits": 2.0308214415559473
+    },
+    {
+      "clip": "Spell Slam Two",
+      "duration": 1.7000000476837158,
+      "maxVertexDeviationConvertedUnits": 9.058660812714875e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 5.972565536436452e-7,
+      "maxVertexMovementConvertedUnits": 2.0482601130759863
+    },
+    {
+      "clip": "Spell Slam Three",
+      "duration": 3.25,
+      "maxVertexDeviationConvertedUnits": 6.982976879506695e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 3.650845387175989e-7,
+      "maxVertexMovementConvertedUnits": 1.8995760220459068
+    },
+    {
+      "clip": "Spell Slam Throw",
+      "duration": 1.746999979019165,
+      "maxVertexDeviationConvertedUnits": 3.241816400785354e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.4935095711375687e-7,
+      "maxVertexMovementConvertedUnits": 1.1084392863222625
+    },
+    {
+      "clip": "Spell Channel One",
+      "duration": 1,
+      "maxVertexDeviationConvertedUnits": 0.000001341555819794124,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.243941140663603e-7,
+      "maxVertexMovementConvertedUnits": 0.2163174858623968
+    },
+    {
+      "clip": "Spell Channel Two",
+      "duration": 1,
+      "maxVertexDeviationConvertedUnits": 0.000001072581949867794,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.7862455958450124e-7,
+      "maxVertexMovementConvertedUnits": 0.4707707515318083
+    },
+    {
+      "clip": "Spell Channel Three",
+      "duration": 1,
+      "maxVertexDeviationConvertedUnits": 0.007013796468902767,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.1961481857970093e-7,
+      "maxVertexMovementConvertedUnits": 1.0013740814975791
+    },
+    {
+      "clip": "Spell Channel Four",
+      "duration": 1.6160000562667847,
+      "maxVertexDeviationConvertedUnits": 5.06057171781182e-7,
+      "maxNormalizedSourceDeviationConvertedUnits": 2.306563991187096e-7,
+      "maxVertexMovementConvertedUnits": 0.16782210287945448
+    },
+    {
+      "clip": "Death",
+      "duration": 3.5,
+      "maxVertexDeviationConvertedUnits": 0.003047758281371903,
+      "maxNormalizedSourceDeviationConvertedUnits": 4.17708858277882e-7,
+      "maxVertexMovementConvertedUnits": 1.5303006703560242
+    },
+    {
+      "clip": "Dissipate",
+      "duration": 2,
+      "maxVertexDeviationConvertedUnits": 0.0030553672630751166,
+      "maxNormalizedSourceDeviationConvertedUnits": 7.348161204064561e-7,
+      "maxVertexMovementConvertedUnits": 4.104147400211651
+    },
+    {
+      "clip": "Portrait - 1",
+      "duration": 1.399999976158142,
+      "maxVertexDeviationConvertedUnits": 0.00004084885503958527,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.2790699249263953e-7,
+      "maxVertexMovementConvertedUnits": 0.01629612032432987
+    },
+    {
+      "clip": "Portrait - 2",
+      "duration": 4,
+      "maxVertexDeviationConvertedUnits": 0.00018497487985915593,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.13504455892527e-7,
+      "maxVertexMovementConvertedUnits": 0.6917644192883722
+    },
+    {
+      "clip": "Portrait Talk - 1",
+      "duration": 3.2669999599456787,
+      "maxVertexDeviationConvertedUnits": 0.00004076419244673066,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.13504455892527e-7,
+      "maxVertexMovementConvertedUnits": 0.11506807287096488
+    },
+    {
+      "clip": "Portrait Talk - 2",
+      "duration": 4.165999889373779,
+      "maxVertexDeviationConvertedUnits": 0.00004076419244673066,
+      "maxNormalizedSourceDeviationConvertedUnits": 1.6050317469233338e-7,
+      "maxVertexMovementConvertedUnits": 0.08271503676414588
+    }
+  ],
+  "maxVertexDeviationConvertedUnits": 0.007013796468902767,
+  "maxNormalizedSourceDeviationConvertedUnits": 7.348161204064561e-7,
+  "comparedVertices": 1378450,
+  "maxRawSourceDeviationSourceUnits": 0.7013796468902768,
+  "maxNormalizedSourceDeviationSourceUnits": 0.00007348161204064562
+}

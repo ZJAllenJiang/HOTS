@@ -11,7 +11,7 @@ export function mountDesktop(renderer:Renderer|null,settings:Settings,pause:()=>
       <p>替换当前槽位的 3D 模型，仅在本次页面中使用，不会上传。技能仍为原型。</p>
       <label>角色槽位 <select id="model-hero"><option value="ranger">远程 · Raynor 目标槽位</option><option value="frost">法师 · Jaina 目标槽位</option><option value="guardian">坦克 · Muradin 目标槽位</option></select></label>
       <label>模型文件 <input id="model-file" type="file" accept=".glb"></label>
-      <p id="model-status" role="status">需要含贴图、骨骼与动作的 GLB。当前仍为几何占位模型。</p>
+      <p id="model-status" role="status">需要含贴图、骨骼与动作的 GLB。吉安娜使用社区移植模型，其他槽位仍为占位模型。</p>
     </details><button id="settings-close">完成</button></div>`;
   document.body.append(panel);
   const quality=panel.querySelector<HTMLSelectElement>('#quality')!;quality.value=settings.quality;

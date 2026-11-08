@@ -1,0 +1,21 @@
+{
+  "name": "model-conversion",
+  "version": "1.0.0",
+  "description": "Audited Jaina HotS community MDX800 to self-contained GLB conversion",
+  "scripts": {
+    "convert": "node convert-jaina.cjs",
+    "validate": "node validate-gltf.cjs && node validate-jaina.cjs",
+    "render": "python render-jaina.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "gltf-validator": "2.0.0-dev.3.10",
+    "pngjs": "7.0.0",
+    "three": "0.180.0",
+    "war3-model": "4.0.1"
+  },
+  "private": true
+}

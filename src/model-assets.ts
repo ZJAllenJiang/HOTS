@@ -19,7 +19,7 @@ export class HeroModels {
       try {
         const response=await fetch(entry.url);if(!response.ok)throw new Error('Model request failed');
         await this.import(hero as Hero,await response.arrayBuffer());
-      }catch(error){console.warn(`Hero model ${hero} not available`,error);}
+      }catch(error){console.warn(`Hero model ${hero} not available`,error);document.dispatchEvent(new CustomEvent("hots:model-error",{detail:{hero}}));}
     }));
   }
   async import(hero:Hero,data:ArrayBuffer){

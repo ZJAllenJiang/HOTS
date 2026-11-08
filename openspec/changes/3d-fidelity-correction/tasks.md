@@ -7,7 +7,8 @@
 - [x] Document model conversion inputs and exact current fidelity blocker.
 - [x] Run deterministic simulation and input/asset validation tests.
 - [x] Verify WebGL-unavailable UI in cloud browser.
-- [ ] Acquire and pin a complete real hero source bundle.
-- [ ] Convert and visually accept hero geometry, textures and all required animations.
+- [x] Acquire and pin a complete character body source bundle (Jaina community port; native M3 fidelity still pending).
+- [x] Convert Jaina body, validate GLB and inspect offline texture/skinning views.
+- [ ] Accept all animations and materials in the browser against native HOTS references.
 - [ ] Test 10 actors, frame time and GPU memory on actual Mac/Windows hardware.
 - [ ] Complete projectile travel, readable windups and collision acceptance.

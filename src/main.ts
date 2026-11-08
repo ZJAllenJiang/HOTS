@@ -8,7 +8,7 @@ import type {Hero,Mode,Key,Renderer} from './contracts';
 const game=document.querySelector<HTMLElement>('#game')!;
 const root=document.querySelector<HTMLElement>('#ui')!;
 const settings=readSettings();
-let mode:Mode='training',hero:Hero='ranger';
+let mode:Mode='training',hero:Hero='frost';
 let state=createGame(mode,hero);state.paused=true;
 let renderer:Renderer|null=null;
 let graphicsReady=false;
@@ -29,6 +29,7 @@ const active=()=>graphicsReady&&!root.classList.contains('is-lobby')&&!state.pau
 function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;}
 const ui=mountUI(root,{start,pause:()=>{if(graphicsReady)state.paused=!state.paused;},cast:key=>{if(active())armed=key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
 const desktop=mountDesktop(renderer,settings,()=>{state.paused=true;armed=null;});
+document.addEventListener('hots:model-error',()=>{const notice=document.createElement('div');notice.className='model-load-error';notice.setAttribute('role','alert');notice.textContent='英雄模型载入失败，当前显示 3D 占位模型。请刷新重试。';document.body.append(notice);},{signal});
 game.querySelector('canvas')?.addEventListener('webglcontextlost',e=>{e.preventDefault();graphicsFailure('3D 图形连接已中断，战斗已暂停。重新加载以恢复。');},{signal});
 game.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
 game.addEventListener('pointermove',e=>{if(renderer)aim=renderer.pick(e.clientX,e.clientY);},{signal});
