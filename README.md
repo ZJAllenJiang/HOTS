@@ -4,13 +4,21 @@ TypeScript + Three.js 的单线战斗开发原型。它用于验证浏览器输�
 
 设计提案保留自 [PR #1](https://github.com/ZJAllenJiang/HOTS/pull/1) 的 `docs/browser-aram-design` 分支。提案中的阶段目标与待办保持原样；当前实现证据单独记录在 [实施状态](docs/implementation-status.md)，避免把设计目标当成已交付能力。
 
+## 私人试玩
+
+已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。使用拥有此站点的 ChatGPT 账号登录。默认尝试 WebGL 3D；WebGL 不可用时进入明确标注的 Canvas 2D 兼容模式。建议先使用桌面鼠标和键盘。
+
+右键移动/攻击，左键攻击；Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
+
+[发布验证记录](docs/release-validation.md)区分已验证玩法与尚未验证的 3D 视觉。
+
 ## 云端运行
 
 1. 在 GitHub Codespaces 中打开本仓库，使用仓库的 devcontainer；容器提供 Node.js 24，并在创建时运行 `npm ci`。
 2. 在终端运行 `npm run dev -- --port 5173 --strictPort`。
 3. 打开 **Ports** 面板中 5173 的浏览器预览。端口使用 Codespaces 默认的 **Private** 可见性；确认保持 **Private**。需要重置时，可在 Codespace 终端运行 `gh codespace ports visibility 5173:private -c "$CODESPACE_NAME"`。
 
-这是临时开发预览。停止 Codespace 或开发进程后预览不可用；本配置没有创建或发布托管服务。无需在本机安装 Unity、Node.js 或美术工具。
+这是临时开发预览。停止 Codespace 或开发进程后预览不可用；Codespaces 配置本身不负责发布；上方私人试玩独立托管。无需在本机安装 Unity、Node.js 或美术工具。
 
 已有 Node.js 24 环境也可运行：
 
