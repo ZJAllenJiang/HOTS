@@ -1,0 +1,9 @@
+schema: spec-driven
+context: |
+  Project: browser-based HOTS-inspired single-lane 5v5 game.
+  Status: design proposal only; no implemented or deployed game.
+  User priorities: clear assets, fidelity to existing gameplay, cloud-only development possible.
+  Recommended stack (pending design approval): TypeScript, Three.js, Node.js, WebSocket.
+  Canonical technical design: docs/superpowers/specs/2026-11-06-browser-aram-design.md
+  Distinguish researched source facts, proposed engineering budgets, and measured results.
+  Preserve source/asset attribution; do not claim tool installation or test execution without evidence.
