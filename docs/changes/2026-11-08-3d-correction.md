@@ -60,3 +60,5 @@ Unity WebGL would still require the same source models, texture conversion and v
 ## Verification boundary
 
 Cloud preview browser reports WebGL disabled; verified the 3D-required screen and reload behavior. Actual 3D rendering, imported HOTS assets, GPU memory, Mac/Windows native browser behavior and FPS remain unverified. Never describe the missing-model gate as passed because unit tests or builds succeed.
+
+Automated checks: TypeScript and 21 tests passed, including actual GLTFLoader parsing of a synthetic skinned GLB, independent skeletons, animation changes, replacement and disposal during asynchronous load. This fixture contains no HOTS assets. Production build succeeded (before the final resource-disposal fix: JS 646.15 kB / 174.19 kB gzip); chunk-size advisory remains. GitHub Actions run 42457036194 passed for checkpoint 88056851. Final-head CI and publication are recorded separately.

@@ -54,7 +54,7 @@ export class HeroModels {
       const clip=t.clips[motion]??t.clips.idle??t.gltf.animations[0];
       if(clip){const next=mixer.clipAction(clip);if(next!==current){current?.fadeOut(.15);next.reset().fadeIn(.15).play();current=next;}}
       mixer.update(dt);
-    },dispose(){mixer.stopAllAction();mixer.uncacheRoot(scene);root.removeFromParent();}};
+    },dispose(){mixer.stopAllAction();mixer.uncacheRoot(scene);scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
   }
   dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();}
 }
