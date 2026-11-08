@@ -31,7 +31,7 @@ describe('deterministic ARAM prototype simulation',()=>{
   it('respawns defeated training dummies and allows one of three talents',()=>{
     const s=createGame('training','frost'),p=s.units[0],dummy=s.units[1];dummy.hp=1;
     command(s,{type:'cast',key:'q',x:0,z:0});expect(dummy.alive).toBe(false);step(s,4.1);expect(dummy.alive).toBe(true);expect(dummy.hp).toBe(dummy.maxHp);
-    s.teams[0].level=2;command(s,{type:'talent',index:2});expect(p.maxHp).toBe(950*1.25);command(s,{type:'talent',index:0});expect(s.talent).toBe(2);
+    s.teams[0].level=2;command(s,{type:'talent',index:2});expect(p.maxHp).toBe(1650*1.25);command(s,{type:'talent',index:0});expect(s.talent).toBe(2);
   });
   it('respawns a fallen player with health, mana and cooldowns restored',()=>{
     const s=createGame('battle','frost'),p=s.units[0];
