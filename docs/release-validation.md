@@ -1,4 +1,26 @@
-# Prototype release validation — 2026-11-08
+# 3D-only correction release — 2026-11-08
+
+Version 2 deployed successfully to https://hots-aram-lab.zjallenjiang.chatgpt.site .
+
+- GitHub runtime commit: `8efbab88128317d4735c32e7cd5132e903d3c7b1`.
+- Site source commit: `d75673c4de51259ecb95d1ab0eaeb0aec2e6229f` (same application source).
+- Deployment: `appgdep_6af01ef8b2e48191844d43496b0735fe`, **succeeded**.
+- Version: `appgprj_6aedf88c8b108191917a049f4b70cbea~appgver_81490392f5148191aaba6b9b83bc1a95`.
+- GitHub Actions run `42457250932`: **success** on the runtime commit.
+- TypeScript, 21 tests and production build passed. JS 646.17 kB (174.19 kB gzip), CSS 25.61 kB (6.74 kB gzip); Vite chunk-size advisory remains.
+- Site access was observed as public before this release and preserved. No access configuration was changed by this correction.
+
+The 2D renderer is deleted. WebGL 2 failure/context loss stops play; browser QA verified the recovery screen and reload while WebGL was disabled. **Actual 3D appearance, real hero assets, physical Mac/Windows controls and GPU performance remain unverified.** Synthetic GLB tests verify independent skeleton instances, animation switching and resource lifecycle, not artistic fidelity.
+
+See [correction details](changes/2026-11-08-3d-correction.md) and [PR #3](https://github.com/ZJAllenJiang/HOTS/pull/3). The real-model source bundle remains the first unfinished acceptance gate. PR #2 was already merged before this correction; PR #3 tracks the new changes separately.
+
+The source-opening issue was a shallow remote rejecting updates to shallow roots. A credential-scoped fetch with `--update-shallow` prepared the local shallow boundary; the standard Site helper then opened, built, committed, pushed and packaged successfully. No remote history was rewritten.
+
+---
+
+## Historical version 1 evidence (superseded where changed above)
+
+### Prototype release validation — 2026-11-08
 
 ## Delivered
 

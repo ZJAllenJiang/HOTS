@@ -4,9 +4,9 @@ TypeScript + Three.js 的单线战斗开发原型。它用于验证浏览器输�
 
 设计提案保留自 [PR #1](https://github.com/ZJAllenJiang/HOTS/pull/1) 的 `docs/browser-aram-design` 分支。提案中的阶段目标与待办保持原样；当前实现证据单独记录在 [实施状态](docs/implementation-status.md)，避免把设计目标当成已交付能力。
 
-## 私人试玩
+## 在线试玩
 
-已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。使用拥有此站点的 ChatGPT 账号登录。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。模型仍是占位模型，原作英雄尚未完成。
+已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。模型仍是占位模型，原作英雄尚未完成。
 
 右键或 Mac Control + 单击移动/攻击，左键攻击；触控板模式支持左键移动。右下角可选画质与操作方式。Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
 

@@ -32,3 +32,7 @@ devcontainer 与 Actions 文件在仓库中提供可审阅配置；只有实际�
 ## 2026-11-08 发布记录
 
 详见 [release-validation.md](release-validation.md)。已部署的可玩技术原型不代表 M0 原作视觉或 M1 完整规则验收完成。
+
+## 3D-only correction (version 2)
+
+3D-only recovery, slower pacing, desktop controls and GLB ingestion are implemented and deployed; 21 tests and current-runtime CI passed. See [release validation](release-validation.md). Real HOTS models and Mac/Windows GPU acceptance remain incomplete; M0 is still open.
