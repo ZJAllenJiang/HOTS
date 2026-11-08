@@ -1,0 +1,13 @@
+{
+  "name": "HOTS ARAM prototype",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "remoteUser": "node",
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "ARAM private development preview",
+      "onAutoForward": "notify"
+    }
+  }
+}
