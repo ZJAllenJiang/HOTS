@@ -1,0 +1,282 @@
+{
+  "output": "/workspace/scratch/d8c764368be4/model-conversion/jaina-hots-body.glb",
+  "sourceModelSHA256": "bc2792ef0d03cf95e94838e1563f6c28f04a7e54c6e5cc114f0cafaca71c67a8",
+  "quaternionNormalization": {
+    "maxSourceNormError": 0.003121889497226915,
+    "sourceKeysChangedAbove1eMinus5": 368
+  },
+  "bytes": 2861560,
+  "sha256": "c202b9f858e1bd7b618c14ddc98302814fd8144a2cd88038d63b78f73024a500",
+  "bodyGeosets": 7,
+  "bodyVertices": 7255,
+  "bodyTriangles": 10537,
+  "skinJoints": 52,
+  "jointSourceIDs": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    53,
+    54
+  ],
+  "clips": [
+    {
+      "name": "Stand - 1",
+      "duration": 1.98,
+      "channels": 82
+    },
+    {
+      "name": "Stand - 2",
+      "duration": 4.617,
+      "channels": 82
+    },
+    {
+      "name": "Stand - 3",
+      "duration": 4.158,
+      "channels": 82
+    },
+    {
+      "name": "Stand - 4",
+      "duration": 2.574,
+      "channels": 82
+    },
+    {
+      "name": "Stand Ready",
+      "duration": 1.98,
+      "channels": 82
+    },
+    {
+      "name": "Stand Victory",
+      "duration": 4.943,
+      "channels": 82
+    },
+    {
+      "name": "Walk",
+      "duration": 0.822,
+      "channels": 82
+    },
+    {
+      "name": "Attack - 1",
+      "duration": 1.4,
+      "channels": 82
+    },
+    {
+      "name": "Attack - 2",
+      "duration": 1.6,
+      "channels": 82
+    },
+    {
+      "name": "Attack - 3",
+      "duration": 1,
+      "channels": 82
+    },
+    {
+      "name": "Attack - 4",
+      "duration": 1.4,
+      "channels": 82
+    },
+    {
+      "name": "Attack - 5",
+      "duration": 1.1,
+      "channels": 82
+    },
+    {
+      "name": "Attack Slam",
+      "duration": 0.9,
+      "channels": 82
+    },
+    {
+      "name": "Spell One First",
+      "duration": 2.5,
+      "channels": 82
+    },
+    {
+      "name": "Spell One Second",
+      "duration": 2.5,
+      "channels": 82
+    },
+    {
+      "name": "Spell Two",
+      "duration": 0.9,
+      "channels": 82
+    },
+    {
+      "name": "Spell Three",
+      "duration": 1.236,
+      "channels": 82
+    },
+    {
+      "name": "Spell Four",
+      "duration": 1.65,
+      "channels": 82
+    },
+    {
+      "name": "Spell Five",
+      "duration": 1.71,
+      "channels": 82
+    },
+    {
+      "name": "Spell Throw One",
+      "duration": 1.067,
+      "channels": 82
+    },
+    {
+      "name": "Spell Throw Two",
+      "duration": 1.187,
+      "channels": 82
+    },
+    {
+      "name": "Spell Throw Three",
+      "duration": 1.069,
+      "channels": 82
+    },
+    {
+      "name": "Spell Throw Four",
+      "duration": 1.6,
+      "channels": 82
+    },
+    {
+      "name": "Spell Throw Five",
+      "duration": 1.089,
+      "channels": 82
+    },
+    {
+      "name": "Spell Slam One",
+      "duration": 1.076,
+      "channels": 82
+    },
+    {
+      "name": "Spell Slam Two",
+      "duration": 1.7,
+      "channels": 82
+    },
+    {
+      "name": "Spell Slam Three",
+      "duration": 3.25,
+      "channels": 82
+    },
+    {
+      "name": "Spell Slam Throw",
+      "duration": 1.747,
+      "channels": 82
+    },
+    {
+      "name": "Spell Channel One",
+      "duration": 1,
+      "channels": 82
+    },
+    {
+      "name": "Spell Channel Two",
+      "duration": 1,
+      "channels": 82
+    },
+    {
+      "name": "Spell Channel Three",
+      "duration": 1,
+      "channels": 82
+    },
+    {
+      "name": "Spell Channel Four",
+      "duration": 1.616,
+      "channels": 82
+    },
+    {
+      "name": "Death",
+      "duration": 3.5,
+      "channels": 82
+    },
+    {
+      "name": "Dissipate",
+      "duration": 2,
+      "channels": 82
+    },
+    {
+      "name": "Portrait - 1",
+      "duration": 1.4,
+      "channels": 82
+    },
+    {
+      "name": "Portrait - 2",
+      "duration": 4,
+      "channels": 82
+    },
+    {
+      "name": "Portrait Talk - 1",
+      "duration": 3.267,
+      "channels": 82
+    },
+    {
+      "name": "Portrait Talk - 2",
+      "duration": 4.166,
+      "channels": 82
+    }
+  ],
+  "image": {
+    "width": 1024,
+    "height": 1024,
+    "bytes": 829430,
+    "mimeType": "image/png",
+    "embedded": true
+  },
+  "normalMaxErrorBeforeNormalize": 1,
+  "unusedZeroNormalsRepaired": 3,
+  "orientation": "Source +X forward/Z up -> glTF +Z forward/Y up; source scale multiplied by0.01 (arbitrary converted units; physical units unverified)",
+  "excluded": {
+    "replaceableGlowGeosets": [
+      7,
+      8,
+      9
+    ],
+    "particleEmitters2": 9,
+    "ribbons": 0,
+    "events": 5,
+    "cameras": 1,
+    "collisionShapes": 2
+  }
+}

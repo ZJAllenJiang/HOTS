@@ -1,21 +1,16 @@
 import * as THREE from 'three';
+import {QUALITY,type Quality} from './settings';
+import {HeroModels,type ModelInstance} from './model-assets';
 import type { Renderer, State, Unit, Effect, Hero } from './contracts';
 
 // Original, procedural arena art. All geometry is local to this prototype.
-export function createRenderer(container: HTMLElement): Renderer {
+export function createRenderer(container: HTMLElement,quality:Quality='balanced'): Renderer {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#111d2b');
   scene.fog = new THREE.FogExp2('#192c39', 0.009);
-  let renderer: THREE.WebGLRenderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  } catch (error) {
-    const alert = document.getElementById('error');
-    if (alert) { alert.hidden = false; alert.setAttribute('role', 'alert'); alert.textContent = 'The arena needs WebGL graphics. Please enable hardware acceleration and reload.'; }
-    throw error;
-  }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.65));
-  renderer.shadowMap.enabled = true;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY[quality].pixelRatio));
+  renderer.shadowMap.enabled = QUALITY[quality].shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -63,7 +58,7 @@ export function createRenderer(container: HTMLElement): Renderer {
   }
   scene.add(new THREE.HemisphereLight(0xa9d6ed, 0x223c34, 2.4));
   const sun = new THREE.DirectionalLight(0xffe1b1, 3.5); sun.position.set(-16, 36, 16); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -48; sun.shadow.camera.right = 48; sun.shadow.camera.top = 28; sun.shadow.camera.bottom = -28;
+  sun.shadow.mapSize.set(QUALITY[quality].shadowSize, QUALITY[quality].shadowSize); sun.shadow.camera.left = -48; sun.shadow.camera.right = 48; sun.shadow.camera.top = 28; sun.shadow.camera.bottom = -28;
   sun.shadow.normalBias = .055; sun.shadow.bias = -.0003; scene.add(sun);
   const rim = new THREE.DirectionalLight(0x7aabff, 2); rim.position.set(12, 8, -20); scene.add(rim);
 
@@ -135,12 +130,16 @@ export function createRenderer(container: HTMLElement): Renderer {
     }
   }
 
-  interface Visual { root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; prevX: number; prevZ: number; facing: number; kind: string; hero: Hero; }
+  interface Visual { model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; prevX: number; prevZ: number; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   const hpBg = new THREE.MeshBasicMaterial({ color: 0x101b24, depthTest: false });
   const hpAlly = new THREE.MeshBasicMaterial({ color: 0x6ceac3, depthTest: false });
   const hpEnemy = new THREE.MeshBasicMaterial({ color: 0xff748a, depthTest: false });
   const manaMaterial = new THREE.MeshBasicMaterial({ color: 0x5b9fff, depthTest: false });
+  const models=new HeroModels(hero=>{
+    for(const [id,v] of visuals)if(v.hero===hero&&(v.kind==='hero'||v.kind==='dummy')){v.model?.dispose();scene.remove(v.root);visuals.delete(id);}
+  });
+  void models.loadDefaults();
   function healthbar(u: Unit, root: THREE.Group, y: number, width: number) {
     const bar = new THREE.Group(); bar.position.y = y; root.add(bar); bar.renderOrder = 30;
     const bg = mesh(bar, plane, hpBg, 0, 0, 0, width + .09, .18, 1); bg.castShadow = false; bg.renderOrder = 30;
@@ -249,8 +248,10 @@ export function createRenderer(container: HTMLElement): Renderer {
       const halo = mesh(body, haloGeometry, trim, 0, 2.8, 0); halo.rotation.x = .5;
       barHeight = 4.9; barWidth = 3;
     }
+    const model=(u.kind==='hero'||u.kind==='dummy')?models.instantiate(u.hero):null;
+    if(model){body.clear();body.add(model.root);weapon=undefined;glow=undefined;}
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { root, body, ...bars, weapon, glow, prevX: u.x, prevZ: u.z, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    return { model:model??undefined, root, body, ...bars, weapon, glow, prevX: u.x, prevZ: u.z, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
@@ -272,7 +273,7 @@ export function createRenderer(container: HTMLElement): Renderer {
     camera.position.set(focus.x, distance * .87, focus.z + distance * .71); camera.lookAt(focus.x, 0, focus.z);
     for (const u of s.units) {
       active.add(u.id); let v = visuals.get(u.id);
-      if (v && (v.kind !== u.kind || v.hero !== u.hero)) { scene.remove(v.root); visuals.delete(u.id); v = undefined; }
+      if (v && (v.kind !== u.kind || v.hero !== u.hero)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(u.id); v = undefined; }
       if (!v) { v = makeUnit(u); visuals.set(u.id, v); }
       v.root.visible = u.alive;
       if (!u.alive) continue;
@@ -285,7 +286,8 @@ export function createRenderer(container: HTMLElement): Renderer {
       v.body.rotation.y += rotationDelta * Math.min(1, frame * 13);
       v.root.position.x += (u.x - v.root.position.x) * Math.min(1, frame * 20);
       v.root.position.z += (u.z - v.root.position.z) * Math.min(1, frame * 20);
-      if (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'dummy') {
+      if(v.model){v.model.update(moving?'run':target&&u.attackCooldown>.15?'attack':'idle',frame);}
+      else if (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'dummy') {
         v.body.position.y = moving ? Math.abs(Math.sin(elapsed * 10 + u.id)) * .09 : Math.sin(elapsed * 2 + u.id) * .025;
         v.body.rotation.z = moving ? Math.sin(elapsed * 10 + u.id) * .035 : 0;
         if (v.weapon) v.weapon.rotation.x = target && u.attackCooldown > .25 ? Math.sin(elapsed * 13) * .25 : Math.sin(elapsed * 2) * .025;
@@ -298,7 +300,7 @@ export function createRenderer(container: HTMLElement): Renderer {
       if (v.mana) { const mana = Math.max(0, Math.min(1, u.mana / u.maxMana)); v.mana.scale.x = width * mana; v.mana.position.x = -width * (1 - mana) / 2; }
       v.prevX = u.x; v.prevZ = u.z;
     }
-    for (const [id, v] of visuals) if (!active.has(id)) { scene.remove(v.root); visuals.delete(id); }
+    for (const [id, v] of visuals) if (!active.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
     destination.visible = !!player?.alive && !!player.dest;
     selection.visible = !!player?.alive;
     if (player) { selection.position.set(player.x, 0, player.z); selection.scale.setScalar(1 + Math.sin(elapsed * 3) * .025); }
@@ -325,12 +327,18 @@ export function createRenderer(container: HTMLElement): Renderer {
   }
   return {
     update,
+    importModel(hero,data){return models.import(hero,data);},
+    setQuality(value){
+      const preset=QUALITY[value];renderer.setPixelRatio(Math.min(window.devicePixelRatio,preset.pixelRatio));
+      renderer.shadowMap.enabled=preset.shadows;sun.shadow.mapSize.set(preset.shadowSize,preset.shadowSize);
+      sun.shadow.map?.dispose();sun.shadow.map=null;renderer.shadowMap.needsUpdate=true;resize();
+    },
     pick(clientX, clientY) {
       const rect = renderer.domElement.getBoundingClientRect(); mouse.set((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
       ray.setFromCamera(mouse, camera); ray.ray.intersectPlane(ground, intersection);
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }

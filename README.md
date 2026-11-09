@@ -4,11 +4,11 @@ TypeScript + Three.js 的单线战斗开发原型。它用于验证浏览器输�
 
 设计提案保留自 [PR #1](https://github.com/ZJAllenJiang/HOTS/pull/1) 的 `docs/browser-aram-design` 分支。提案中的阶段目标与待办保持原样；当前实现证据单独记录在 [实施状态](docs/implementation-status.md)，避免把设计目标当成已交付能力。
 
-## 私人试玩
+## 在线试玩
 
-已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。使用拥有此站点的 ChatGPT 账号登录。默认尝试 WebGL 3D；WebGL 不可用时进入明确标注的 Canvas 2D 兼容模式。建议先使用桌面鼠标和键盘。
+已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。吉安娜已接入带贴图和动画的 HOTS 社区移植模型；其余英雄仍为占位模型，技能仍为原型。
 
-右键移动/攻击，左键攻击；Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
+右键或 Mac Control + 单击移动/攻击，左键攻击；触控板模式支持左键移动。右下角可选画质与操作方式。Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
 
 [发布验证记录](docs/release-validation.md)区分已验证玩法与尚未验证的 3D 视觉。
 
@@ -47,3 +47,7 @@ npm run build
 视觉与手感样片（M0）需要真实素材管线、动画与性能证据；完整人机首版（M2）需要固定原作 build 的完整技能/天赋与规则验收；联机首版（M3）需要权威服务器与多客户端测试。目前的可运行原型不能替代这些验收。
 
 仓库 MIT LICENSE 适用于项目原创代码/文档；第三方依赖与外部素材分别遵守其许可。当前未引入或分发暴雪原作素材。
+
+## 3D 修正进度
+
+见 [3D、模型与节奏修正记录](docs/changes/2026-11-08-3d-correction.md)。吉安娜模型候选已完成转换、格式和离线画面检查，并部署到第三版。详见 [模型接入记录](docs/assets/jaina-integration.md)。原版技能、特效和真实 Mac/Windows 浏览器验收仍未完成。

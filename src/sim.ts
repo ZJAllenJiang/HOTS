@@ -27,12 +27,15 @@ export const TALENTS = [
   {name:'Fortitude',description:'Gain 25% maximum health and restore it.'},
 ] as const;
 
+export const PACING = Object.freeze({ firstWave: 12, waveInterval: 30, minionSpeed: 1.8,
+  minionHealth: 620, minionDamage: 18, minionAttackInterval: 1.65,
+  towerHealth: 12000, coreHealth: 18000, aiCastInterval: 1.6 });
 const FIXED_DT=.05;
 const accumulator = new WeakMap<State,number>();
 const stats:Record<Hero,{hp:number;mana:number;damage:number;range:number;speed:number}> = {
-  ranger:{hp:1050,mana:450,damage:82,range:8,speed:6},
-  frost:{hp:950,mana:550,damage:65,range:7.5,speed:5.6},
-  guardian:{hp:1550,mana:450,damage:78,range:3.2,speed:5.2},
+  ranger:{hp:1800,mana:450,damage:82,range:8,speed:6},
+  frost:{hp:1650,mana:550,damage:65,range:7.5,speed:5.6},
+  guardian:{hp:2900,mana:450,damage:78,range:3.2,speed:5.2},
 };
 const clamp=(v:number,a:number,b:number)=>Math.max(a,Math.min(b,v));
 const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -40,13 +43,13 @@ const keys:Key[]=['q','w','e','r'];
 const zeros=()=>({q:0,w:0,e:0,r:0});
 
 function addUnit(s:State, team:0|1,kind:Unit['kind'],hero:Hero,x:number,z:number):Unit {
-  const hp=kind==='hero'?stats[hero].hp:kind==='tower'?1800:kind==='core'?2600:kind==='dummy'?1800:260;
-  const u:Unit={id:s.nextId++,team,kind,hero,x,z,hp,maxHp:hp,mana:stats[hero].mana,maxMana:stats[hero].mana,alive:true,respawn:0,cooldowns:zeros(),target:null,dest:null,attackCooldown:0,kills:0,deaths:0};
+  const hp=kind==='hero'?stats[hero].hp:kind==='tower'?PACING.towerHealth:kind==='core'?PACING.coreHealth:kind==='dummy'?1800:PACING.minionHealth;
+  const u:Unit={id:s.nextId++,team,kind,hero,x,z,hp,maxHp:hp,mana:stats[hero].mana,maxMana:stats[hero].mana,alive:true,respawn:0,cooldowns:zeros(),target:null,dest:null,attackCooldown:0,aiCastCooldown:.4+(s.nextId%5)*.23,kills:0,deaths:0};
   s.units.push(u);return u;
 }
 
 export function createGame(mode:Mode,hero:Hero):State {
-  const s:State={mode,time:0,tick:0,units:[],effects:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextWave:0};
+  const s:State={mode,time:0,tick:0,units:[],effects:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextWave:PACING.firstWave};
   const player=addUnit(s,0,'hero',hero,mode==='training'?-10:-24,0);s.playerId=player.id;
   if(mode==='training'){
     addUnit(s,1,'dummy','guardian',0,0);addUnit(s,1,'dummy','guardian',7,-5);addUnit(s,1,'dummy','guardian',7,5);
@@ -59,7 +62,7 @@ export function createGame(mode:Mode,hero:Hero):State {
   return s;
 }
 
-function grantXP(s:State,team:number,amount:number){const t=s.teams[team];t.xp+=amount;t.level=Math.min(20,1+Math.floor(t.xp/300));}
+function grantXP(s:State,team:number,amount:number){const t=s.teams[team];t.xp+=amount;t.level=Math.min(20,1+Math.floor(t.xp/1000));}
 function damage(s:State,source:Unit,target:Unit,amount:number){
   if(!target.alive||target.team===source.team)return;
   if(target.kind==='core'&&s.units.some(u=>u.team===target.team&&u.kind==='tower'&&u.alive))return;
@@ -134,7 +137,7 @@ function moveToward(u:Unit,x:number,z:number,dt:number,speed:number,stop=0){
 }
 function wave(s:State){
   for(const team of [0,1] as const)for(let i=0;i<3;i++)addUnit(s,team,'minion','guardian',team===0?-27:27,(i-1)*2);
-  s.nextWave+=13;
+  s.nextWave+=PACING.waveInterval;
 }
 function tick(s:State){
   s.tick++;s.time=s.tick*FIXED_DT;
@@ -149,30 +152,35 @@ function tick(s:State){
       }continue;
     }
     for(const key of keys)u.cooldowns[key]=u.cooldowns[key]<=FIXED_DT+1e-8?0:u.cooldowns[key]-FIXED_DT;
+    u.aiCastCooldown=Math.max(0,u.aiCastCooldown-FIXED_DT);
     u.attackCooldown=u.attackCooldown<=FIXED_DT+1e-8?0:u.attackCooldown-FIXED_DT;
     if(u.kind==='dummy')continue;
     if(u.kind==='hero'){u.mana=Math.min(u.maxMana,u.mana+4*FIXED_DT);u.hp=Math.min(u.maxHp,u.hp+(s.mode==='training'?8:1.2)*FIXED_DT);}
     const player=u.id===s.playerId;
     const mobile=u.kind==='hero'||u.kind==='minion';
+    if(!player&&mobile&&s.mode==='battle'&&s.time<PACING.firstWave)continue;
     let t=u.target===null?undefined:s.units.find(v=>v.id===u.target&&legalTarget(s,u,v));
     if(player&&u.dest){moveToward(u,u.dest.x,u.dest.z,FIXED_DT,stats[u.hero].speed);if(distance(u,u.dest)<.05){u.x=u.dest.x;u.z=u.dest.z;u.dest=null;}continue;}
     if(!t||(!player&&distance(u,t)>22))t=nearest(s,u,player?range(u):mobile?28:range(u));
     u.target=t?.id??null;
     if(t){
       const d=distance(u,t),r=range(u);
-      if(mobile&&d>r*.94)moveToward(u,t.x,t.z,FIXED_DT,u.kind==='minion'?3.2:stats[u.hero].speed,r*.92);
-      if(!player&&u.kind==='hero'){
-        if(u.hp<u.maxHp*.55)cast(s,u,'e',u.x,u.z);
-        if(d<=ABILITIES[u.hero].q.range)cast(s,u,'q',t.x,t.z);
-        if(d<=ABILITIES[u.hero].w.range)cast(s,u,'w',t.x,t.z);
-        if(d<=ABILITIES[u.hero].r.range)cast(s,u,'r',t.x,t.z);
+      if(mobile&&d>r*.94)moveToward(u,t.x,t.z,FIXED_DT,u.kind==='minion'?PACING.minionSpeed:stats[u.hero].speed,r*.92);
+      if(!player&&u.kind==='hero'&&u.aiCastCooldown<=1e-8){
+        // One successful decision per interval, never a whole kit in one tick.
+        const choices:Key[]=u.hp<u.maxHp*.55?['e','r','q','w']:['r','q','w'];
+        for(const key of choices){
+          if(cast(s,u,key,key==='e'?u.x:t.x,key==='e'?u.z:t.z)){
+            u.aiCastCooldown=PACING.aiCastInterval;break;
+          }
+        }
       }
       if(t.alive&&distance(u,t)<=r&&u.attackCooldown<=1e-8){
-        damage(s,u,t,u.kind==='tower'?70:u.kind==='core'?60:u.kind==='minion'?24:stats[u.hero].damage);
-        u.attackCooldown=u.kind==='hero'?(s.talent===1&&player ? .7 : 1):u.kind==='minion'?1.2:1;
+        damage(s,u,t,u.kind==='tower'?70:u.kind==='core'?60:u.kind==='minion'?PACING.minionDamage:stats[u.hero].damage);
+        u.attackCooldown=u.kind==='hero'?(s.talent===1&&player ? .7 : 1):u.kind==='minion'?PACING.minionAttackInterval:1;
         s.effects.push({x:t.x,z:t.z,radius:.5,life:.15,team:u.team,kind:'attack'});
       }
-    }else if(mobile&&!player&&s.mode==='battle')moveToward(u,u.team===0?30:-30,0,FIXED_DT,u.kind==='minion'?3.2:stats[u.hero].speed);
+    }else if(mobile&&!player&&s.mode==='battle')moveToward(u,u.team===0?30:-30,0,FIXED_DT,u.kind==='minion'?PACING.minionSpeed:stats[u.hero].speed);
     if(s.winner!==null)break;
   }
   // Remove fallen wave units without changing the order of surviving actors.

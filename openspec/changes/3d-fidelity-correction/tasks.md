@@ -1,0 +1,14 @@
+- [x] Delete 2D fallback and stop play when WebGL is unavailable.
+- [x] Handle WebGL context loss with pause and recovery prompt.
+- [x] Separate wave, minion, AI-cast, hero durability and XP pacing parameters from simulation frequency.
+- [x] Add mouse/trackpad and Control-click control paths with modifier guards.
+- [x] Add persistent quality presets with DPR and shadow budgets.
+- [x] Implement self-contained GLB validation, skeleton cloning, animation switching and replacement disposal.
+- [x] Document model conversion inputs and exact current fidelity blocker.
+- [x] Run deterministic simulation and input/asset validation tests.
+- [x] Verify WebGL-unavailable UI in cloud browser.
+- [x] Acquire and pin a complete character body source bundle (Jaina community port; native M3 fidelity still pending).
+- [x] Convert Jaina body, validate GLB and inspect offline texture/skinning views.
+- [ ] Accept all animations and materials in the browser against native HOTS references.
+- [ ] Test 10 actors, frame time and GPU memory on actual Mac/Windows hardware.
+- [ ] Complete projectile travel, readable windups and collision acceptance.
