@@ -17,3 +17,9 @@ Successfully deployed: https://hots-aram-lab.zjallenjiang.chatgpt.site
 GitHub runtime `4df072c525a2001e195e0f9677b87e057eeb6f1b`; Site source `3c5fd0399b4fb1876e0dbe4edc19e3512ab0c033`; deployment `appgdep_6af05900eaf4819187a34b6775ea9052`. Saved version `appgprj_6aedf88c8b108191917a049f4b70cbea~appgver_a07325bb035c8191a3f91faf5453bcc2`. GitHub Actions run `42474656395` passed on the runtime commit. Access configuration was preserved.
 
 The default frost slot uses the real model; the lobby image is an offline rendered preview, not a gameplay capture. Browser/GPU acceptance limits above remain in effect.
+
+## Combat animation follow-up — 2026-11-09
+
+Based on merged PR #3 (`a1af32a`). Combat now emits timestamped visual cues on accepted casts and actual basic attacks, including killing blows. The renderer consumes each fresh cue once instead of looping the attack clip while cooldown remains. Attack/cast clips use LoopOnce, return to idle/run, restart on a new action, and freeze on pause. A cast takes visual priority over an automatic attack within 150 ms; simulation damage and cooldowns are unchanged. Clips are capped at 650 ms for this prototype; impact-frame timing is not original-game synchronization. New matches rebuild actor visuals to avoid retaining old animation state.
+
+Validation: TypeScript, all 26 tests and production build passed. Five new regressions cover one-shot completion, pause, repeated actions, spell clips, rejected casts, killing blows and cast/autoattack priority. Preview booted through the managed preview service; the cloud browser still reports unavailable WebGL 2. Therefore gameplay appearance, GPU performance and physical Mac/Windows acceptance remain unverified. No additional hero model or original ability kit is claimed.

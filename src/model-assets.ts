@@ -3,11 +3,12 @@ import {GLTFLoader,type GLTF} from 'three/addons/loaders/GLTFLoader.js';
 import {clone} from 'three/addons/utils/SkeletonUtils.js';
 import type {Hero} from './contracts';
 import {inspectGLB} from './model-validation';
+import {ModelAnimation,type Motion} from './model-animation';
 import manifest from './model-manifest.json';
 
-export type Motion='idle'|'run'|'attack';
+export type {Motion} from './model-animation';
 interface Template {gltf:GLTF;clips:Partial<Record<Motion,THREE.AnimationClip>>;height:number}
-export interface ModelInstance {root:THREE.Group;update(motion:Motion,dt:number):void;dispose():void}
+export interface ModelInstance {root:THREE.Group;update(motion:'idle'|'run',dt:number):void;play(motion:'attack'|'cast'):void;dispose():void}
 export class HeroModels {
   private templates=new Map<Hero,Template>();
   private generations=new Map<Hero,number>();
@@ -31,7 +32,7 @@ export class HeroModels {
     const size=box.getSize(new THREE.Vector3());
     if(!Number.isFinite(size.y)||size.y<=0){disposeGLTF(gltf);throw new Error('模型没有可显示的网格。');}
     const clips:Template['clips']={};
-    for(const [motion,pattern] of Object.entries({idle:/stand|idle/i,run:/walk|run/i,attack:/attack/i})){
+    for(const [motion,pattern] of Object.entries({idle:/stand|idle/i,run:/walk|run/i,attack:/attack/i,cast:/spell(?!.*channel)|cast/i})){
       const clip=gltf.animations.find(c=>pattern.test(c.name));if(clip)clips[motion as Motion]=clip;
     }
     const previous=this.templates.get(hero);
@@ -48,13 +49,9 @@ export class HeroModels {
     const scale=t.height/(box.max.y-box.min.y);
     const root=new THREE.Group();root.add(scene);scene.position.set(-center.x,-box.min.y,-center.z);root.scale.setScalar(scale);
     scene.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
-    const mixer=new THREE.AnimationMixer(scene);
-    let current:THREE.AnimationAction|undefined;
-    return {root,update(motion,dt){
-      const clip=t.clips[motion]??t.clips.idle??t.gltf.animations[0];
-      if(clip){const next=mixer.clipAction(clip);if(next!==current){current?.fadeOut(.15);next.reset().fadeIn(.15).play();current=next;}}
-      mixer.update(dt);
-    },dispose(){mixer.stopAllAction();mixer.uncacheRoot(scene);scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
+    const animation=new ModelAnimation(scene,t.clips);
+    return {root,update(motion,dt){animation.update(motion,dt);},play(motion){animation.play(motion);},
+      dispose(){animation.dispose();scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
   }
   dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();}
 }

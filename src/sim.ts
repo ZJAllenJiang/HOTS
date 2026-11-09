@@ -83,6 +83,7 @@ function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
   if(key==='r'&&s.teams[u.team].level<3)return false;
   u.mana-=a.cost;u.cooldowns[key]=a.cooldown;
   x=clamp(x,-35,35);z=clamp(z,-9,9);
+  u.visualAction={sequence:(u.visualAction?.sequence??0)+1,kind:'cast',time:s.time,x,z};
   if(key==='e'){
     if(u.hero==='guardian'){
       for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<6)ally.hp=Math.min(ally.maxHp,ally.hp+240);
@@ -176,6 +177,9 @@ function tick(s:State){
         }
       }
       if(t.alive&&distance(u,t)<=r&&u.attackCooldown<=1e-8){
+        // Preserve a just-accepted cast when AI also attacks in the same render interval.
+        if(u.visualAction?.kind!=='cast'||s.time-u.visualAction.time>.15)
+          u.visualAction={sequence:(u.visualAction?.sequence??0)+1,kind:'attack',time:s.time,x:t.x,z:t.z};
         damage(s,u,t,u.kind==='tower'?70:u.kind==='core'?60:u.kind==='minion'?PACING.minionDamage:stats[u.hero].damage);
         u.attackCooldown=u.kind==='hero'?(s.talent===1&&player ? .7 : 1):u.kind==='minion'?PACING.minionAttackInterval:1;
         s.effects.push({x:t.x,z:t.z,radius:.5,life:.15,team:u.team,kind:'attack'});

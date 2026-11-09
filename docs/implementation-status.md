@@ -36,3 +36,7 @@ devcontainer 与 Actions 文件在仓库中提供可审阅配置；只有实际�
 ## 3D-only correction (version 2)
 
 3D-only recovery, slower pacing, desktop controls and GLB ingestion are implemented and deployed; 21 tests and current-runtime CI passed. See [release validation](release-validation.md). Real HOTS models and Mac/Windows GPU acceptance remain incomplete; M0 is still open.
+
+## 2026-11-09 animation follow-up
+
+PR #3 is merged. Accepted combat actions now trigger single-play model animations; casting has its own clip, pause freezes animation, and a new match clears previous actor state. Typecheck, 26 tests and production build passed. See `docs/assets/jaina-integration.md` for validation boundaries; M0/M2/M3 remain open.

@@ -31,7 +31,7 @@ it('loads a GLB, clones independent skeletons, changes animations and replaces r
  expect(a).not.toBeNull();const am=a.root.getObjectByName('mesh') as THREE.SkinnedMesh,bm=b.root.getObjectByName('mesh') as THREE.SkinnedMesh;
  expect(am.skeleton).not.toBe(bm.skeleton);expect(am.skeleton.bones[0]).not.toBe(bm.skeleton.bones[0]);
  a.update('run',.5);expect(am.skeleton.bones[0].position.y).toBeGreaterThan(0);expect(bm.skeleton.bones[0].position.y).toBe(0);
- a.update('attack',.2);a.dispose();b.dispose();await models.import('ranger',fixture());expect(changes).toBe(2);
+ a.play('attack');a.update('idle',.2);a.dispose();b.dispose();await models.import('ranger',fixture());expect(changes).toBe(2);
  models.dispose();expect(models.instantiate('ranger')).toBeNull();
 });
 it('does not retain an in-flight imported asset after disposal',async()=>{
