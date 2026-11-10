@@ -38,3 +38,13 @@ it('does not retain an in-flight imported asset after disposal',async()=>{
  let changes=0;const models=new HeroModels(()=>changes++);const result=models.import('frost',fixture());models.dispose();
  await expect(result).rejects.toThrow('取消');expect(changes).toBe(0);expect(models.instantiate('frost')).toBeNull();
 });
+it('keeps the authored actor pivot instead of centering asymmetric equipment bounds',async()=>{
+ const models=new HeroModels(()=>{});await models.import('ranger',fixture());const model=models.instantiate('ranger')!;
+ // Fixture spans x=0..1: bbox centering used to incorrectly shift the actor by -0.5.
+ model.root.updateMatrixWorld(true);
+ const mesh=model.root.getObjectByName('mesh') as THREE.SkinnedMesh;
+ expect(mesh.getWorldPosition(new THREE.Vector3()).x).toBeCloseTo(0);
+ const bounds=new THREE.Box3().setFromObject(model.root);expect(bounds.min.y).toBeCloseTo(0);
+ expect(bounds.max.y-bounds.min.y).toBeCloseTo(2.6);
+ model.dispose();models.dispose();
+});

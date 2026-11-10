@@ -6,6 +6,7 @@ export class ModelAnimation {
   private mixer:THREE.AnimationMixer;
   private current?:THREE.AnimationAction;
   private oneShot=false;
+  private actionAge=0;
   private locomotion:'idle'|'run'='idle';
   constructor(private root:THREE.Object3D,private clips:Partial<Record<Motion,THREE.AnimationClip>>) {
     this.mixer=new THREE.AnimationMixer(root);
@@ -19,8 +20,8 @@ export class ModelAnimation {
     next.stopFading().reset().setEffectiveWeight(1).setEffectiveTimeScale(1);
     next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
     next.clampWhenFinished=once;
-    // Keep a combat clip within one attack interval without repeating it.
-    if(once)next.setDuration(Math.min(clip.duration,.65));
+    // Preserve authored clip timing; locomotion can interrupt the recovery.
+    this.actionAge=0;
     next.fadeIn(.12).play();this.current=next;this.oneShot=once;
   }
   play(motion:'attack'|'cast') {
@@ -31,6 +32,8 @@ export class ModelAnimation {
     this.locomotion=motion;
     // A paused render must not consume or cancel the current action.
     if(dt<=0)return;
+    this.actionAge+=dt;
+    if(this.oneShot&&motion==='run'&&this.actionAge>=.12)this.oneShot=false;
     if(!this.oneShot){
       const clip=this.clips[this.locomotion]??this.clips.idle;
       if(clip&&(this.current?.getClip()!==clip||!this.current.isRunning()))this.switchTo(clip,false);

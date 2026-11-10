@@ -19,11 +19,11 @@ export class HeroModels {
       if(!entry.url)return;
       try {
         const response=await fetch(entry.url);if(!response.ok)throw new Error('Model request failed');
-        await this.import(hero as Hero,await response.arrayBuffer());
+        await this.import(hero as Hero,await response.arrayBuffer(),hero==='frost');
       }catch(error){console.warn(`Hero model ${hero} not available`,error);document.dispatchEvent(new CustomEvent("hots:model-error",{detail:{hero}}));}
     }));
   }
-  async import(hero:Hero,data:ArrayBuffer){
+  async import(hero:Hero,data:ArrayBuffer,jainaProfile=false){
     const report=inspectGLB(data);
     const generation=(this.generations.get(hero)??0)+1;this.generations.set(hero,generation);
     const gltf=await new GLTFLoader().parseAsync(data,'');
@@ -35,6 +35,12 @@ export class HeroModels {
     for(const [motion,pattern] of Object.entries({idle:/stand|idle/i,run:/walk|run/i,attack:/attack/i,cast:/spell(?!.*channel)|cast/i})){
       const clip=gltf.animations.find(c=>pattern.test(c.name));if(clip)clips[motion as Motion]=clip;
     }
+    if(jainaProfile){
+      const names={idle:'Stand Ready',run:'Walk',attack:'Attack - 1',cast:'Spell Two'} as const;
+      for(const motion of Object.keys(names) as Motion[]){
+        const clip=gltf.animations.find(c=>c.name===names[motion]);if(clip)clips[motion]=clip;
+      }
+    }
     const previous=this.templates.get(hero);
     this.templates.set(hero,{gltf,clips,height:hero==='guardian'?2.3:2.6});
     // Remove old instances before releasing the shared geometry and textures.
@@ -45,9 +51,17 @@ export class HeroModels {
   instantiate(hero:Hero):ModelInstance|null {
     const t=this.templates.get(hero);if(!t)return null;
     const scene=clone(t.gltf.scene);
-    const box=new THREE.Box3().setFromObject(scene),center=box.getCenter(new THREE.Vector3());
+    // Measure the actual idle pose, not the unanimated bind pose.
+    const pose=new THREE.AnimationMixer(scene);
+    if(t.clips.idle){pose.clipAction(t.clips.idle).play();pose.update(0);}
+    scene.updateMatrixWorld(true);
+    scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.computeBoundingBox();});
+    const box=new THREE.Box3().setFromObject(scene);
+    pose.stopAllAction();pose.uncacheRoot(scene);
     const scale=t.height/(box.max.y-box.min.y);
-    const root=new THREE.Group();root.add(scene);scene.position.set(-center.x,-box.min.y,-center.z);root.scale.setScalar(scale);
+    const root=new THREE.Group(),grounded=new THREE.Group();
+    root.add(grounded);grounded.add(scene);grounded.position.y=-box.min.y;root.scale.setScalar(scale);
+    // Preserve the authored X/Z pivot: a staff or cape must not shift the actor's center.
     scene.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
     const animation=new ModelAnimation(scene,t.clips);
     return {root,update(motion,dt){animation.update(motion,dt);},play(motion){animation.play(motion);},

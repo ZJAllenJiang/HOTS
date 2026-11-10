@@ -1,3 +1,4 @@
+import {Locomotion,smoothing} from './locomotion';
 import * as THREE from 'three';
 import {QUALITY,type Quality} from './settings';
 import {HeroModels,type ModelInstance} from './model-assets';
@@ -130,7 +131,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     }
   }
 
-  interface Visual { actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; prevX: number; prevZ: number; facing: number; kind: string; hero: Hero; }
+  interface Visual { locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   const hpBg = new THREE.MeshBasicMaterial({ color: 0x101b24, depthTest: false });
   const hpAlly = new THREE.MeshBasicMaterial({ color: 0x6ceac3, depthTest: false });
@@ -250,8 +251,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     }
     const model=(u.kind==='hero'||u.kind==='dummy')?models.instantiate(u.hero):null;
     if(model){body.clear();body.add(model.root);weapon=undefined;glow=undefined;}
+    body.rotation.y=u.team===0?Math.PI/2:-Math.PI/2;
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { model:model??undefined, root, body, ...bars, weapon, glow, prevX: u.x, prevZ: u.z, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    return { locomotion:new Locomotion(u.x,u.z), model:model??undefined, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
@@ -270,7 +272,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     const frame = Math.min(Math.max(dt, 0), .1); elapsed += frame;
     active.clear();
     const player = s.units.find(u => u.id === s.playerId);
-    if (player) { focus.x += (player.x * .28 - focus.x) * Math.min(1, frame * 2.7); focus.z += (player.z * .28 - focus.z) * Math.min(1, frame * 2.7); }
+    if (player) { focus.x += (player.x * .28 - focus.x) * smoothing(2.7,frame); focus.z += (player.z * .28 - focus.z) * smoothing(2.7,frame); }
     camera.position.set(focus.x, distance * .87, focus.z + distance * .71); camera.lookAt(focus.x, 0, focus.z);
     for (const u of s.units) {
       active.add(u.id); let v = visuals.get(u.id);
@@ -278,19 +280,18 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       if (!v) { v = makeUnit(u); visuals.set(u.id, v); }
       v.root.visible = u.alive;
       if (!u.alive) {v.actionSequence=u.visualAction?.sequence;continue;}
-      const dx = u.x - v.prevX, dz = u.z - v.prevZ;
-      const moving = Math.abs(dx) + Math.abs(dz) > .003;
+      const {dx,dz,moving,displaced}=v.locomotion.sample(u.x,u.z,s.time);
       const target = u.target === null ? undefined : s.units.find(other => other.id === u.target && other.alive);
       const action=u.visualAction;
       const newAction=action&&action.sequence!==v.actionSequence&&s.time-action.time<.3;
       if(newAction){v.facing=Math.atan2(action.x-u.x,action.z-u.z);v.model?.play(action.kind);}
       v.actionSequence=action?.sequence;
-      if (!newAction&&moving) v.facing = Math.atan2(dx, dz);
-      else if (!newAction&&target) v.facing = Math.atan2(target.x - u.x, target.z - u.z);
+      if (!newAction&&displaced) v.facing = Math.atan2(dx, dz);
+      else if (!newAction&&!moving&&target) v.facing = Math.atan2(target.x - u.x, target.z - u.z);
       const rotationDelta = Math.atan2(Math.sin(v.facing - v.body.rotation.y), Math.cos(v.facing - v.body.rotation.y));
-      v.body.rotation.y += rotationDelta * Math.min(1, frame * 13);
-      v.root.position.x += (u.x - v.root.position.x) * Math.min(1, frame * 20);
-      v.root.position.z += (u.z - v.root.position.z) * Math.min(1, frame * 20);
+      v.body.rotation.y += rotationDelta * smoothing(13,frame);
+      v.root.position.x += (u.x - v.root.position.x) * smoothing(20,frame);
+      v.root.position.z += (u.z - v.root.position.z) * smoothing(20,frame);
       if(v.model){v.model.update(moving?'run':'idle',frame);}
       else if (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'dummy') {
         v.body.position.y = moving ? Math.abs(Math.sin(elapsed * 10 + u.id)) * .09 : Math.sin(elapsed * 2 + u.id) * .025;
@@ -303,7 +304,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       const hp = Math.max(0, Math.min(1, u.hp / u.maxHp));
       v.health.scale.x = width * hp; v.health.position.x = -width * (1 - hp) / 2;
       if (v.mana) { const mana = Math.max(0, Math.min(1, u.mana / u.maxMana)); v.mana.scale.x = width * mana; v.mana.position.x = -width * (1 - mana) / 2; }
-      v.prevX = u.x; v.prevZ = u.z;
     }
     for (const [id, v] of visuals) if (!active.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
     destination.visible = !!player?.alive && !!player.dest;

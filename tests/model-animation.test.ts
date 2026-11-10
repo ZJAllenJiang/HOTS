@@ -18,6 +18,15 @@ it('restarts the same clip on a new attack and uses a separate cast clip',()=>{
  const {bone,animation}=setup();animation.play('attack');animation.update('idle',.4);
  expect(bone.position.y).toBeCloseTo(8);animation.play('attack');animation.update('idle',.2);
  expect(bone.position.y).toBeCloseTo(4);animation.play('cast');animation.update('idle',.25);
- expect(bone.position.y).toBeCloseTo(10);animation.update('run',.3);animation.update('run',.25);
+ expect(bone.position.y).toBeCloseTo(10);animation.update('idle',.3);animation.update('run',.25);
  expect(bone.position.y).toBeCloseTo(.5);animation.dispose();
+});
+it('preserves authored duration and allows movement to interrupt a long cast',()=>{
+ const root=new THREE.Group(),bone=new THREE.Object3D();bone.name='bone';root.add(bone);
+ const animation=new ModelAnimation(root,{
+  cast:new THREE.AnimationClip('cast',2,[new THREE.NumberKeyframeTrack('bone.position[y]',[0,2],[0,20])]),
+  run:new THREE.AnimationClip('run',1,[new THREE.NumberKeyframeTrack('bone.position[y]',[0,1],[0,1])])
+ });
+ animation.play('cast');animation.update('idle',.5);expect(bone.position.y).toBeCloseTo(5);
+ animation.update('run',.2);expect(bone.position.y).toBeCloseTo(.2);animation.dispose();
 });
