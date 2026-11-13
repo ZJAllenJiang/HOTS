@@ -51,3 +51,15 @@ npm run build
 ## 3D 修正进度
 
 见 [3D、模型与节奏修正记录](docs/changes/2026-11-08-3d-correction.md)。吉安娜模型候选已完成转换、格式和离线画面检查，并部署到第三版。详见 [模型接入记录](docs/assets/jaina-integration.md)。原版技能、特效和真实 Mac/Windows 浏览器验收仍未完成。
+
+### Offline build and Blender assets
+
+Run `npm run build:offline` to export `dist-offline/hots-aram-offline.html`. Open it in a desktop browser with WebGL 2. The file embeds the runtime, styles, Jaina model and portrait, and arena tower. The build reports raw bytes and estimated gzip/Brotli delivery sizes. The normal `npm run build` still produces the web deployment in `dist/`.
+
+The arena tower was authored in Blender 4.3.2. To regenerate the GLB, run:
+
+```sh
+blender -b --factory-startup --python-exit-code 1 --python tools/blender/arcane_tower.py -- public/models/arena/arcane-tower.glb
+```
+
+Pass an additional `.blend` path to save an editable Blender scene. Both teams reuse the same 980-triangle mesh and select their own rune and crystal colors in Three.js. The GLB is 55,424 bytes.

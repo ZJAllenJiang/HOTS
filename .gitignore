@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.tar.gz
 .vite/
+
+dist-offline/
