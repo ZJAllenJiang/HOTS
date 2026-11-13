@@ -1,3 +1,5 @@
+import {loadArenaTower} from './arena-tower';
+import {ProjectileView} from './projectile-view';
 import {Locomotion,smoothing} from './locomotion';
 import * as THREE from 'three';
 import {QUALITY,type Quality} from './settings';
@@ -133,6 +135,17 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
 
   interface Visual { locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
+  let tower: Awaited<ReturnType<typeof loadArenaTower>> | undefined;
+  let disposed = false;
+  void loadArenaTower().then(asset => {
+    if (disposed) { asset.dispose(); return; }
+    tower = asset;
+    for (const [id, visual] of visuals) {
+      if (visual.kind !== 'tower') continue;
+      scene.remove(visual.root);
+      visuals.delete(id);
+    }
+  }).catch(error => console.warn('Arena tower asset unavailable. Using the built-in tower.', error));
   const hpBg = new THREE.MeshBasicMaterial({ color: 0x101b24, depthTest: false });
   const hpAlly = new THREE.MeshBasicMaterial({ color: 0x6ceac3, depthTest: false });
   const hpEnemy = new THREE.MeshBasicMaterial({ color: 0xff748a, depthTest: false });
@@ -227,14 +240,20 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       box(body, armor, -.33, .7, .2, .16, .48, .36);
       ring(root, tc, .42, .035, .05, .3); barHeight = 1.65; barWidth = .88;
     } else if (u.kind === 'tower') {
-      cyl(body, 0x303e4b, 0, .24, 0, 1.37, .48); cyl(body, 0x74828a, 0, .58, 0, 1.1, .24);
-      cyl(body, 0x425868, 0, 1.38, 0, .77, 1.5); cyl(body, 0xd0b07a, 0, 2.12, 0, 1, .17);
-      for (let i = 0; i < 4; i++) {
-        const a = i * Math.PI / 2 + Math.PI / 4;
-        const buttress = box(body, 0x70808a, Math.sin(a) * .78, 1.19, Math.cos(a) * .78, .33, 1.5, .37); buttress.rotation.y = a;
-        mesh(body, cone, trim, Math.sin(a) * .73, 2.57, Math.cos(a) * .73, .19, .8, .19);
+      if (tower) {
+        const asset = tower.instantiate(u.team);
+        body.add(asset.root);
+        glow = asset.crystal;
+      } else {
+        cyl(body, 0x303e4b, 0, .24, 0, 1.37, .48); cyl(body, 0x74828a, 0, .58, 0, 1.1, .24);
+        cyl(body, 0x425868, 0, 1.38, 0, .77, 1.5); cyl(body, 0xd0b07a, 0, 2.12, 0, 1, .17);
+        for (let i = 0; i < 4; i++) {
+          const a = i * Math.PI / 2 + Math.PI / 4;
+          const buttress = box(body, 0x70808a, Math.sin(a) * .78, 1.19, Math.cos(a) * .78, .33, 1.5, .37); buttress.rotation.y = a;
+          mesh(body, cone, trim, Math.sin(a) * .73, 2.57, Math.cos(a) * .73, .19, .8, .19);
+        }
+        glow = mesh(body, crystalGeo, mat(tc, .45, .18, 1.2), 0, 2.9, 0, .53, 1, .53);
       }
-      glow = mesh(body, crystalGeo, mat(tc, .45, .18, 1.2), 0, 2.9, 0, .53, 1, .53);
       ring(root, tc, 1.75, .055, .09, .4); barHeight = 4.15; barWidth = 2.45;
     } else {
       cyl(body, 0x3a4759, 0, .3, 0, 2.35, .6); cyl(body, 0x9b9d91, 0, .65, 0, 1.95, .18);
@@ -260,6 +279,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; const mark = box(destination, 0xf6deb0, Math.sin(a) * .63, .12, Math.cos(a) * .63, .1, .055, .19); mark.rotation.y = a; }
   interface FX { root: THREE.Group; ring: THREE.Mesh; motes: THREE.Mesh[]; initialLife: number; }
   const effects = new Map<Effect, FX>();
+  const projectileView=new ProjectileView(scene);
   const fxMaterials = [0x6be6ff, 0xff7aab, 0x78efb6].map(color => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .65, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
   const selection = new THREE.Group(); scene.add(selection); ring(selection, 0xffe3a0, 1.08, .035, .1, 1.1);
   const effectRingGeo = geo(new THREE.RingGeometry(.84, 1, 48));
@@ -268,7 +288,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   function resize() { const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   const observer = new ResizeObserver(resize); observer.observe(container); resize();
   function update(s: State, dt: number) {
-    if(lastState!==s){visuals.forEach(v=>{v.model?.dispose();scene.remove(v.root);});visuals.clear();lastState=s;}
+    if(lastState!==s){visuals.forEach(v=>{v.model?.dispose();scene.remove(v.root);});visuals.clear();projectileView.clear();lastState=s;}
     const frame = Math.min(Math.max(dt, 0), .1); elapsed += frame;
     active.clear();
     const player = s.units.find(u => u.id === s.playerId);
@@ -328,6 +348,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       for (let i = 0; i < fx.motes.length; i++) { const a = i * Math.PI * 2 / fx.motes.length + elapsed; const p = fx.motes[i]; p.position.set(Math.cos(a) * r * .8, .25 + Math.abs(Math.sin(a * 2 + elapsed * 5)) * height, Math.sin(a) * r * .8); p.rotation.y = elapsed * 3; }
     }
     for (const [e, fx] of effects) if (!fxActive.has(e)) { scene.remove(fx.root); effects.delete(e); }
+    projectileView.update(s.projectiles,s.tick,frame);
     renderer.render(scene, camera);
   }
   return {
@@ -344,6 +365,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }
