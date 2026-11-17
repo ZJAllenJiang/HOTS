@@ -19,9 +19,10 @@ describe('deterministic ARAM prototype simulation',()=>{
     command(s,{type:'cast',key:'q',x:30,z:0});expect(p.mana).toBe(p.maxMana);
     command(s,{type:'cast',key:'r',x:0,z:0});expect(p.cooldowns.r).toBe(0);
     command(s,{type:'cast',key:'q',x:0,z:0});
-    expect(p.mana).toBe(p.maxMana-ABILITIES.ranger.q.cost);expect(dummy.hp).toBeLessThan(dummy.maxHp);
-    const hp=dummy.hp,mana=p.mana;command(s,{type:'cast',key:'q',x:0,z:0});expect(dummy.hp).toBe(hp);expect(p.mana).toBe(mana);
-    step(s,5);expect(p.cooldowns.q).toBe(0);p.mana=0;command(s,{type:'cast',key:'q',x:0,z:0});expect(p.cooldowns.q).toBe(0);
+    expect(p.mana).toBe(p.maxMana-ABILITIES.ranger.q.cost);expect(s.projectiles).toHaveLength(1);
+    const mana=p.mana;command(s,{type:'cast',key:'q',x:0,z:0});expect(s.projectiles).toHaveLength(1);expect(p.mana).toBe(mana);
+    step(s,.5);expect(dummy.hp).toBe(dummy.maxHp-190);
+    step(s,4.5);expect(p.cooldowns.q).toBe(0);p.mana=0;command(s,{type:'cast',key:'q',x:0,z:0});expect(p.cooldowns.q).toBe(0);expect(s.projectiles).toHaveLength(0);
   });
   it('moves at hero speed, clamps bounds, and stops',()=>{
     const s=createGame('training','ranger'),p=s.units[0];command(s,{type:'move',x:-30,z:0});step(s,1);
@@ -30,7 +31,7 @@ describe('deterministic ARAM prototype simulation',()=>{
   });
   it('respawns defeated training dummies and allows one of three talents',()=>{
     const s=createGame('training','frost'),p=s.units[0],dummy=s.units[1];dummy.hp=1;
-    command(s,{type:'cast',key:'q',x:0,z:0});expect(dummy.alive).toBe(false);step(s,4.1);expect(dummy.alive).toBe(true);expect(dummy.hp).toBe(dummy.maxHp);
+    command(s,{type:'cast',key:'q',x:0,z:0});step(s,.5);expect(dummy.alive).toBe(false);step(s,4.1);expect(dummy.alive).toBe(true);expect(dummy.hp).toBe(dummy.maxHp);
     s.teams[0].level=2;command(s,{type:'talent',index:2});expect(p.maxHp).toBe(1650*1.25);command(s,{type:'talent',index:0});expect(s.talent).toBe(2);
   });
   it('respawns a fallen player with health, mana and cooldowns restored',()=>{
@@ -41,8 +42,11 @@ describe('deterministic ARAM prototype simulation',()=>{
   });
   it('protects a core until its tower falls and freezes the winning state',()=>{
     const s=createGame('battle','ranger'),p=s.units[0],core=s.units.find(u=>u.kind==='core'&&u.team===1)!,tower=s.units.find(u=>u.kind==='tower'&&u.team===1)!;
-    p.x=25;p.z=0;core.hp=1;command(s,{type:'cast',key:'q',x:30,z:0});expect(core.hp).toBe(1);
-    tower.alive=false;p.cooldowns.q=0;command(s,{type:'cast',key:'q',x:30,z:0});expect(s.winner).toBe(0);
+    s.units=[p,core,tower];p.x=17;tower.z=9;core.hp=1;
+    command(s,{type:'cast',key:'q',x:30,z:0});step(s,1);expect(core.hp).toBe(1);expect(s.projectiles).toHaveLength(0);
+    tower.alive=false;p.cooldowns.q=0;command(s,{type:'cast',key:'q',x:30,z:0});
+    p.cooldowns.q=0;command(s,{type:'cast',key:'q',x:17,z:5});expect(s.projectiles).toHaveLength(2);
+    step(s,1);expect(s.winner).toBe(0);expect(s.projectiles).toHaveLength(0);
     const before=structuredClone(s);step(s,10);command(s,{type:'move',x:0,z:0});expect(s).toEqual(before);
   });
   it.each(['ranger','frost','guardian'] as const)('runs waves and autonomous bots to a completed battle with %s',hero=>{

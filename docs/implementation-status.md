@@ -40,3 +40,13 @@ devcontainer 与 Actions 文件在仓库中提供可审阅配置；只有实际�
 ## 2026-11-09 animation follow-up
 
 PR #3 is merged. Accepted combat actions now trigger single-play model animations; casting has its own clip, pause freezes animation, and a new match clears previous actor state. Typecheck, 26 tests and production build passed. See `docs/assets/jaina-integration.md` for validation boundaries; M0/M2/M3 remain open.
+
+## 2026-11-09 ranged Q projectile slice
+
+Ranger/frost Q now use fixed-step windup, travel, first-hit swept collision and actual-contact damage, with 3D charge/bolt/impact presentation. This changes experimental Q behavior from line-wide piercing to first enemy hit; UI descriptions match. Typecheck and 49 tests passed. See `docs/changes/2026-11-09-projectile-combat.md` and `openspec/changes/projectile-combat/tasks.md` for evidence and remaining acceptance. Original M0/M1 milestones remain incomplete.
+
+## 2026-11-13 Blender asset and offline export
+
+An original Blender tower replaces the primitive tower after its GLB loads. The renderer shares geometry across teams and applies separate rune and crystal colors. The 55,424-byte GLB has 980 triangles across six primitives and needs no external textures.
+
+The optional offline build contains the arena and Jaina assets in one 5,241,215-byte HTML file. Local compression estimates are 2,130,285 bytes with gzip and 1,986,709 bytes with Brotli. TypeScript, both builds and 54 tests passed. The shared cloud browser reported unavailable WebGL 2. Mac and Windows hardware performance remains open.

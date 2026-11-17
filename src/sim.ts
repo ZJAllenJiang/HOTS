@@ -1,15 +1,16 @@
 import type {Command, Hero, Key, Mode, State, Unit} from './contracts';
+import {PROJECTILE_RULES, projectileContact} from './projectiles';
 
 export interface Ability {name:string;cost:number;cooldown:number;range:number;description:string}
 export const ABILITIES: Record<Hero,Record<Key,Ability>> = {
   ranger: {
-    q:{name:'Piercing Arrow',cost:35,cooldown:5,range:15,description:'A narrow piercing shot dealing 190 damage.'},
+    q:{name:'Swift Arrow',cost:35,cooldown:5,range:15,description:'Fire an arrow that deals 190 damage to the first enemy hit.'},
     w:{name:'Arrow Volley',cost:50,cooldown:9,range:13,description:'Deal 140 damage in a wide area.'},
     e:{name:'Vault',cost:30,cooldown:10,range:9,description:'Dash to the selected point.'},
     r:{name:'Starfall',cost:90,cooldown:35,range:17,description:'Deal 360 damage in a large area.'},
   },
   frost: {
-    q:{name:'Ice Lance',cost:35,cooldown:5,range:14,description:'A piercing bolt dealing 220 damage.'},
+    q:{name:'Ice Lance',cost:35,cooldown:5,range:14,description:'Fire an ice bolt that deals 220 damage to the first enemy hit.'},
     w:{name:'Blizzard',cost:55,cooldown:9,range:13,description:'Deal 180 damage around the selected point.'},
     e:{name:'Frost Step',cost:40,cooldown:12,range:8,description:'Blink to the selected point and restore 100 health.'},
     r:{name:'Frozen Orb',cost:100,cooldown:35,range:17,description:'Deal 420 damage in a large area.'},
@@ -49,7 +50,7 @@ function addUnit(s:State, team:0|1,kind:Unit['kind'],hero:Hero,x:number,z:number
 }
 
 export function createGame(mode:Mode,hero:Hero):State {
-  const s:State={mode,time:0,tick:0,units:[],effects:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextWave:PACING.firstWave};
+  const s:State={mode,time:0,tick:0,units:[],effects:[],projectiles:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextProjectileId:1,nextWave:PACING.firstWave};
   const player=addUnit(s,0,'hero',hero,mode==='training'?-10:-24,0);s.playerId=player.id;
   if(mode==='training'){
     addUnit(s,1,'dummy','guardian',0,0);addUnit(s,1,'dummy','guardian',7,-5);addUnit(s,1,'dummy','guardian',7,5);
@@ -64,8 +65,7 @@ export function createGame(mode:Mode,hero:Hero):State {
 
 function grantXP(s:State,team:number,amount:number){const t=s.teams[team];t.xp+=amount;t.level=Math.min(20,1+Math.floor(t.xp/1000));}
 function damage(s:State,source:Unit,target:Unit,amount:number){
-  if(!target.alive||target.team===source.team)return;
-  if(target.kind==='core'&&s.units.some(u=>u.team===target.team&&u.kind==='tower'&&u.alive))return;
+  if(!legalTarget(s,source,target))return;
   const talent=source.id===s.playerId&&s.talent===0?1.2:1;
   target.hp=Math.max(0,target.hp-amount*talent*(1+.04*(s.teams[source.team].level-1)));
   if(target.hp>0)return;
@@ -75,34 +75,39 @@ function damage(s:State,source:Unit,target:Unit,amount:number){
   }else if(target.kind==='dummy'){target.respawn=4;grantXP(s,source.team,100);}
   else if(target.kind==='minion')grantXP(s,source.team,35);
   else if(target.kind==='tower')grantXP(s,source.team,400);
-  else if(target.kind==='core')s.winner=source.team;
+  else if(target.kind==='core'){s.winner=source.team;s.projectiles=[];}
 }
 function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
   const a=ABILITIES[u.hero][key];
   if(!u.alive||u.cooldowns[key]>1e-8||u.mana<a.cost||!Number.isFinite(x)||!Number.isFinite(z)||distance(u,{x,z})>a.range)return false;
   if(key==='r'&&s.teams[u.team].level<3)return false;
-  u.mana-=a.cost;u.cooldowns[key]=a.cooldown;
   x=clamp(x,-35,35);z=clamp(z,-9,9);
+  const hero=u.hero;
+  const projectile=key==='q'&&hero!=='guardian';
+  const dx=x-u.x,dz=z-u.z;
+  if(projectile&&dx===0&&dz===0)return false;
+  u.mana-=a.cost;u.cooldowns[key]=a.cooldown;
   u.visualAction={sequence:(u.visualAction?.sequence??0)+1,kind:'cast',time:s.time,x,z};
+  if(projectile){
+    const aimDistance=Math.hypot(dx,dz);
+    s.projectiles.push({
+      id:s.nextProjectileId++,sourceId:u.id,team:u.team,hero,x:u.x,z:u.z,
+      dirX:dx/aimDistance,dirZ:dz/aimDistance,
+      launchTick:s.tick+PROJECTILE_RULES.windupTicks,distanceRemaining:a.range,
+    });
+    return true;
+  }
   if(key==='e'){
     if(u.hero==='guardian'){
       for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<6)ally.hp=Math.min(ally.maxHp,ally.hp+240);
     }else{u.x=x;u.z=z;u.dest=null;if(u.hero==='frost')u.hp=Math.min(u.maxHp,u.hp+100);}
     s.effects.push({x,z,radius:2,life:.4,team:u.team,kind:'heal'});return true;
   }
-  const amount=key==='q'?(u.hero==='ranger'?190:u.hero==='frost'?220:160):key==='w'?(u.hero==='ranger'?140:u.hero==='frost'?180:150):(u.hero==='ranger'?360:u.hero==='frost'?420:320);
-  const radius=key==='r'?6:key==='w'?4.5:u.hero==='guardian'?3.5:1.7;
-  const origin={x:u.x,z:u.z};
+  const amount=key==='q'?160:key==='w'?(u.hero==='ranger'?140:u.hero==='frost'?180:150):(u.hero==='ranger'?360:u.hero==='frost'?420:320);
+  const radius=key==='r'?6:key==='w'?4.5:3.5;
   for(const target of s.units){
     if(!target.alive||target.team===u.team)continue;
-    let hit=distance(target,{x,z})<=radius;
-    if(key==='q'&&u.hero!=='guardian'){
-      const dx=x-origin.x,dz=z-origin.z,len=Math.hypot(dx,dz);
-      const projection=len>0?((target.x-origin.x)*dx+(target.z-origin.z)*dz)/len:0;
-      const perpendicular=len>0?Math.abs((target.x-origin.x)*dz-(target.z-origin.z)*dx)/len:distance(target,origin);
-      hit=projection>=0&&projection<=a.range&&perpendicular<=radius;
-    }
-    if(hit)damage(s,u,target,amount);
+    if(distance(target,{x,z})<=radius)damage(s,u,target,amount);
   }
   if(u.hero==='guardian'&&(key==='w'||key==='r'))u.hp=Math.min(u.maxHp,u.hp+(key==='r'?200:100));
   s.effects.push({x,z,radius,life:.55,team:u.team,kind:key==='q'?'shot':key==='r'?'ultimate':'burst'});
@@ -126,7 +131,43 @@ export function command(s:State,c:Command):void {
 }
 
 function range(u:Unit){return u.kind==='tower'?12:u.kind==='core'?10:u.kind==='minion'?2.4:stats[u.hero].range;}
-function legalTarget(s:State,u:Unit,t:Unit){return t.alive&&t.team!==u.team&&!(t.kind==='core'&&s.units.some(v=>v.kind==='tower'&&v.alive&&v.team===t.team));}
+function legalTarget(s:State,u:Unit,t:Unit){return t.alive&&t.id!==u.id&&t.team!==u.team&&!(t.kind==='core'&&s.units.some(v=>v.kind==='tower'&&v.alive&&v.team===t.team));}
+
+function advanceProjectiles(s:State){
+  const active:State['projectiles']=[];
+  for(const projectile of s.projectiles){
+    // Heroes remain in the roster after death, so a committed cast keeps its source.
+    const source=s.units.find(unit=>unit.id===projectile.sourceId);
+    if(!source)continue;
+    if(s.tick<=projectile.launchTick){active.push(projectile);continue;}
+    const travel=Math.min(projectile.distanceRemaining,PROJECTILE_RULES.speed*FIXED_DT);
+    let firstTarget:Unit|undefined;
+    let firstContact=Infinity;
+    for(const target of s.units){
+      if(!legalTarget(s,source,target))continue;
+      const contact=projectileContact(projectile,target,travel);
+      if(contact===undefined)continue;
+      if(!firstTarget||contact<firstContact||(contact===firstContact&&target.id<firstTarget.id)){
+        firstTarget=target;
+        firstContact=contact;
+      }
+    }
+    if(firstTarget){
+      damage(s,source,firstTarget,projectile.hero==='ranger'?190:220);
+      s.effects.push({
+        x:projectile.x+projectile.dirX*firstContact,z:projectile.z+projectile.dirZ*firstContact,
+        radius:1,life:.25,team:projectile.team,kind:'shot',
+      });
+      if(s.winner!==null)return;
+      continue;
+    }
+    projectile.x+=projectile.dirX*travel;
+    projectile.z+=projectile.dirZ*travel;
+    projectile.distanceRemaining-=travel;
+    if(projectile.distanceRemaining>0)active.push(projectile);
+  }
+  s.projectiles=active;
+}
 function nearest(s:State,u:Unit,maxRange:number):Unit|undefined {
   let best:Unit|undefined,bestScore=Infinity;
   for(const t of s.units){if(!legalTarget(s,u,t))continue;const d=distance(u,t);if(d>maxRange)continue;const score=d+(t.kind==='core'?3:0);if(score<bestScore){best=t;bestScore=score;}}
@@ -187,6 +228,7 @@ function tick(s:State){
     }else if(mobile&&!player&&s.mode==='battle')moveToward(u,u.team===0?30:-30,0,FIXED_DT,u.kind==='minion'?PACING.minionSpeed:stats[u.hero].speed);
     if(s.winner!==null)break;
   }
+  if(s.winner===null&&s.projectiles.length>0)advanceProjectiles(s);
   // Remove fallen wave units without changing the order of surviving actors.
   s.units=s.units.filter(u=>u.kind!=='minion'||u.alive);
 }
