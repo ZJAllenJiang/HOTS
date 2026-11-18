@@ -50,3 +50,9 @@ Ranger/frost Q now use fixed-step windup, travel, first-hit swept collision and 
 An original Blender tower replaces the primitive tower after its GLB loads. The renderer shares geometry across teams and applies separate rune and crystal colors. The 55,424-byte GLB has 980 triangles across six primitives and needs no external textures.
 
 The optional offline build contains the arena and Jaina assets in one 5,241,215-byte HTML file. Local compression estimates are 2,130,285 bytes with gzip and 1,986,709 bytes with Brotli. TypeScript, both builds and 54 tests passed. The shared cloud browser reported unavailable WebGL 2. Mac and Windows hardware performance remains open.
+
+## 2026-11-17 live hero presentation
+
+The lobby opens on Jaina and uses the same WebGL canvas as the match to render a lit, skeletal idle preview. Hero slots without a loaded model use their covers. The lobby remains usable on browsers without WebGL 2 and disables match start with an inline explanation. Reduced-motion preferences keep the portrait at a fixed pose and camera angle.
+
+Walking cadence follows smoothed on-screen speed. Flash and respawn update the rendered position immediately, and selection rings track the displayed model. Automated checks cover first-pose evaluation, gait speed, animation timing and preview replacement. Cloud Chrome verified hero and mode selection with WebGL unavailable. Live 3D visual acceptance and Mac/Windows measurements remain open.

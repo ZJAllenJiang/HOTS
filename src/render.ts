@@ -1,6 +1,7 @@
+import {HeroShowcase} from './hero-showcase';
 import {loadArenaTower} from './arena-tower';
 import {ProjectileView} from './projectile-view';
-import {Locomotion,smoothing} from './locomotion';
+import {Locomotion,gaitRate,smoothing} from './locomotion';
 import * as THREE from 'three';
 import {QUALITY,type Quality} from './settings';
 import {HeroModels,type ModelInstance} from './model-assets';
@@ -11,7 +12,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#111d2b');
   scene.fog = new THREE.FogExp2('#192c39', 0.009);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY[quality].pixelRatio));
   renderer.shadowMap.enabled = QUALITY[quality].shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -133,7 +134,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     }
   }
 
-  interface Visual { locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
+  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; stride:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   let tower: Awaited<ReturnType<typeof loadArenaTower>> | undefined;
   let disposed = false;
@@ -150,7 +151,10 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const hpAlly = new THREE.MeshBasicMaterial({ color: 0x6ceac3, depthTest: false });
   const hpEnemy = new THREE.MeshBasicMaterial({ color: 0xff748a, depthTest: false });
   const manaMaterial = new THREE.MeshBasicMaterial({ color: 0x5b9fff, depthTest: false });
+  const showcase = new HeroShowcase();
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const models=new HeroModels(hero=>{
+    showcase.invalidate(hero);
     for(const [id,v] of visuals)if(v.hero===hero&&(v.kind==='hero'||v.kind==='dummy')){v.model?.dispose();scene.remove(v.root);visuals.delete(id);}
   });
   void models.loadDefaults();
@@ -272,7 +276,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     if(model){body.clear();body.add(model.root);weapon=undefined;glow=undefined;}
     body.rotation.y=u.team===0?Math.PI/2:-Math.PI/2;
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { locomotion:new Locomotion(u.x,u.z), model:model??undefined, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, stride:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
@@ -285,10 +289,51 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const effectRingGeo = geo(new THREE.RingGeometry(.84, 1, 48));
   const active = new Set<number>(); const fxActive = new Set<Effect>();
   let elapsed = 0; let lastState:State|undefined;
-  function resize() { const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
-  const observer = new ResizeObserver(resize); observer.observe(container); resize();
+  let surface = container;
+  function resize() {
+    const width = Math.max(1, surface.clientWidth);
+    const height = Math.max(1, surface.clientHeight);
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    showcase.resize(width, height);
+  }
+  const observer = new ResizeObserver(resize);
+  observer.observe(surface);
+  resize();
+  function attach(host: HTMLElement) {
+    if (surface === host) return;
+    observer.unobserve(surface);
+    surface = host;
+    host.appendChild(renderer.domElement);
+    observer.observe(host);
+    resize();
+  }
+  function showHero(hero: Hero, host: HTMLElement, dt: number) {
+    if (!showcase.select(hero, models)) {
+      attach(container);
+      return false;
+    }
+    attach(host);
+    showcase.update(Math.min(Math.max(dt, 0), .1), reducedMotion.matches);
+    renderer.render(showcase.scene, showcase.camera);
+    return true;
+  }
   function update(s: State, dt: number) {
-    if(lastState!==s){visuals.forEach(v=>{v.model?.dispose();scene.remove(v.root);});visuals.clear();projectileView.clear();lastState=s;}
+    if (surface !== container) {
+      showcase.clear();
+      attach(container);
+    }
+    if (lastState !== s) {
+      visuals.forEach(v => { v.model?.dispose(); scene.remove(v.root); });
+      visuals.clear();
+      projectileView.clear();
+      for (const fx of effects.values()) scene.remove(fx.root);
+      effects.clear();
+      const player = s.units.find(u => u.id === s.playerId);
+      if (player) focus.set(player.x * .28, 0, player.z * .28);
+      lastState = s;
+    }
     const frame = Math.min(Math.max(dt, 0), .1); elapsed += frame;
     active.clear();
     const player = s.units.find(u => u.id === s.playerId);
@@ -296,26 +341,45 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     camera.position.set(focus.x, distance * .87, focus.z + distance * .71); camera.lookAt(focus.x, 0, focus.z);
     for (const u of s.units) {
       active.add(u.id); let v = visuals.get(u.id);
-      if (v && (v.kind !== u.kind || v.hero !== u.hero)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(u.id); v = undefined; }
+      if (v && (v.kind !== u.kind || v.hero !== u.hero || (!v.wasAlive && u.alive))) { v.model?.dispose(); scene.remove(v.root); visuals.delete(u.id); v = undefined; }
       if (!v) { v = makeUnit(u); visuals.set(u.id, v); }
       v.root.visible = u.alive;
+      v.wasAlive = u.alive;
       if (!u.alive) {v.actionSequence=u.visualAction?.sequence;continue;}
+      if (v.positionEpoch !== u.positionEpoch) {
+        v.root.position.set(u.x, 0, u.z);
+        v.locomotion.reset(u.x, u.z);
+        v.positionEpoch = u.positionEpoch;
+        v.speed = 0;
+      }
       const {dx,dz,moving,displaced}=v.locomotion.sample(u.x,u.z,s.time);
       const target = u.target === null ? undefined : s.units.find(other => other.id === u.target && other.alive);
       const action=u.visualAction;
       const newAction=action&&action.sequence!==v.actionSequence&&s.time-action.time<.3;
-      if(newAction){v.facing=Math.atan2(action.x-u.x,action.z-u.z);v.model?.play(action.kind);}
+      if(newAction){
+        const dx = action.x - u.x, dz = action.z - u.z;
+        if (Math.hypot(dx, dz) > .001) v.facing = Math.atan2(dx,dz);
+        v.model?.play(action.kind);
+      }
       v.actionSequence=action?.sequence;
       if (!newAction&&displaced) v.facing = Math.atan2(dx, dz);
       else if (!newAction&&!moving&&target) v.facing = Math.atan2(target.x - u.x, target.z - u.z);
       const rotationDelta = Math.atan2(Math.sin(v.facing - v.body.rotation.y), Math.cos(v.facing - v.body.rotation.y));
       v.body.rotation.y += rotationDelta * smoothing(13,frame);
-      v.root.position.x += (u.x - v.root.position.x) * smoothing(20,frame);
-      v.root.position.z += (u.z - v.root.position.z) * smoothing(20,frame);
-      if(v.model){v.model.update(moving?'run':'idle',frame);}
+      const positionBlend = smoothing(20,frame);
+      const renderDx = (u.x - v.root.position.x) * positionBlend;
+      const renderDz = (u.z - v.root.position.z) * positionBlend;
+      v.root.position.x += renderDx;
+      v.root.position.z += renderDz;
+      const speed = frame > 0 ? Math.hypot(renderDx, renderDz) / frame : 0;
+      v.speed += (speed - v.speed) * smoothing(10,frame);
+      if(v.model){v.model.update(moving?'run':'idle',frame,gaitRate(v.speed));}
       else if (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'dummy') {
-        v.body.position.y = moving ? Math.abs(Math.sin(elapsed * 10 + u.id)) * .09 : Math.sin(elapsed * 2 + u.id) * .025;
-        v.body.rotation.z = moving ? Math.sin(elapsed * 10 + u.id) * .035 : 0;
+        v.stride += Math.min(v.speed, 8) * frame * 2.2;
+        const strideWeight = Math.min(v.speed / 2, 1);
+        const step = Math.sin(v.stride + u.id);
+        v.body.position.y = Math.abs(step) * .09 * strideWeight + Math.sin(elapsed * 2 + u.id) * .025 * (1 - strideWeight);
+        v.body.rotation.z = step * .035 * strideWeight;
         if (v.weapon) v.weapon.rotation.x = target && u.attackCooldown > .25 ? Math.sin(elapsed * 13) * .25 : Math.sin(elapsed * 2) * .025;
       }
       if (v.glow) { v.glow.rotation.y += frame * .8; v.glow.position.y += Math.sin(elapsed * 2 + u.id) * frame * .08; }
@@ -328,7 +392,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     for (const [id, v] of visuals) if (!active.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
     destination.visible = !!player?.alive && !!player.dest;
     selection.visible = !!player?.alive;
-    if (player) { selection.position.set(player.x, 0, player.z); selection.scale.setScalar(1 + Math.sin(elapsed * 3) * .025); }
+    if (player) { const position = visuals.get(player.id)?.root.position ?? player; selection.position.set(position.x, 0, position.z); selection.scale.setScalar(1 + Math.sin(elapsed * 3) * .025); }
     if (player?.dest) { destination.position.set(player.dest.x, 0, player.dest.z); destination.rotation.y = elapsed * .6; destination.scale.setScalar(1 + Math.sin(elapsed * 6) * .07); }
     fxActive.clear();
     for (const e of s.effects) {
@@ -353,6 +417,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   }
   return {
     update,
+    showHero,
     importModel(hero,data){return models.import(hero,data);},
     setQuality(value){
       const preset=QUALITY[value];renderer.setPixelRatio(Math.min(window.devicePixelRatio,preset.pixelRatio));
@@ -365,6 +430,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }

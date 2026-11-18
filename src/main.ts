@@ -15,6 +15,14 @@ let graphicsReady=false;
 const abort=new AbortController();const signal=abort.signal;
 function graphicsFailure(message:string){
   graphicsReady=false;state.paused=true;
+  const lobbyNotice=root.querySelector<HTMLElement>('#lobby-graphics-notice');
+  if(lobbyNotice&&root.classList.contains('is-lobby')){
+    lobbyNotice.textContent=message+' 开启浏览器硬件加速后，请重新加载。';
+    lobbyNotice.hidden=false;
+    root.querySelector<HTMLButtonElement>('#start')!.disabled=true;
+    ui.showcase.parentElement?.classList.remove('has-live-hero');
+    return;
+  }
   const notice=document.querySelector<HTMLElement>('#error')!;notice.hidden=false;
   notice.className='graphics-error';
   notice.innerHTML='<section><span class="eyebrow">3D GRAPHICS REQUIRED</span><h1>3D 战场暂时无法启动</h1><p></p><p>请检查浏览器的硬件加速设置，并重启浏览器。也可以在 Mac 或 Windows 上尝试最新版 Chrome、Edge 或 Safari。</p><button type="button">重新加载</button></section>';
@@ -22,12 +30,12 @@ function graphicsFailure(message:string){
   notice.querySelector('button')!.addEventListener('click',()=>location.reload(),{signal});
   root.inert=true;notice.querySelector('button')!.focus();
 }
-try {renderer=createRenderer(game,settings.quality);graphicsReady=true;}
-catch {game.replaceChildren();graphicsFailure('此设备或浏览器未提供可用的 WebGL 2。游戏需要真正的 3D 渲染。');}
 let aim={x:0,z:0};let armed:Key|null=null;
 const active=()=>graphicsReady&&!root.classList.contains('is-lobby')&&!state.paused&&state.winner===null;
 function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;}
 const ui=mountUI(root,{start,pause:()=>{if(graphicsReady)state.paused=!state.paused;},cast:key=>{if(active())armed=key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
+try {renderer=createRenderer(game,settings.quality);graphicsReady=true;}
+catch {game.replaceChildren();graphicsFailure('开始对局需要 WebGL 2。');}
 const desktop=mountDesktop(renderer,settings,()=>{state.paused=true;armed=null;});
 document.addEventListener('hots:model-error',()=>{const notice=document.createElement('div');notice.className='model-load-error';notice.setAttribute('role','alert');notice.textContent='英雄模型载入失败，当前显示 3D 占位模型。请刷新重试。';document.body.append(notice);},{signal});
 game.querySelector('canvas')?.addEventListener('webglcontextlost',e=>{e.preventDefault();graphicsFailure('3D 图形连接已中断，战斗已暂停。重新加载以恢复。');},{signal});
@@ -57,7 +65,13 @@ let last=performance.now(),acc=0,frame=0;
 function loop(now:number){
  const dt=Math.min(.2,(now-last)/1000);last=now;
  if(active()){acc+=dt;while(acc>=.05){step(state,.05);acc-=.05;}}else acc=0;
- if(graphicsReady)renderer?.update(state,state.paused?0:dt);
+ if(graphicsReady&&renderer){
+   const lobby=root.classList.contains('is-lobby');
+   if(lobby){
+     const live=renderer.showHero(ui.selectedHero,ui.showcase,document.hidden?0:dt);
+     ui.showcase.parentElement?.classList.toggle('has-live-hero',live);
+   }else renderer.update(state,state.paused||state.winner!==null?0:dt);
+ }
  ui.update(state);frame=requestAnimationFrame(loop);
 }frame=requestAnimationFrame(loop);
 Object.defineProperty(window,'__HOTS_DIAGNOSTICS__',{configurable:true,get:()=>({tick:state.tick,mode:state.mode,units:state.units.length,paused:state.paused,winner:state.winner,graphics:graphicsReady?'webgl2':'unavailable',settings:{...settings},player:state.units.find(u=>u.id===state.playerId),prototype:true})});
