@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Projectile } from './contracts';
+import type { Effect, Projectile } from './contracts';
 
 interface BoltView {
   root: THREE.Group;
@@ -9,7 +9,20 @@ interface BoltView {
   target: THREE.Vector3;
   tick: number;
   blend: number;
+  origin: THREE.Vector3;
+  releaseOffset: THREE.Vector3;
+  launched: boolean;
+  releaseAge: number;
+  terminalAge?: number;
+  terminalTrail: THREE.Mesh;
 }
+
+export type ProjectileReleasePosition = (projectile: Readonly<Projectile>) =>
+  {x: number; y: number; z: number} | undefined;
+
+const TICK_DURATION = .05;
+const RELEASE_BLEND_DISTANCE = 2.4;
+const CONTACT_TRAIL_DURATION = .1;
 
 function material(color: number, opacity = 1) {
   return new THREE.MeshBasicMaterial({
@@ -84,13 +97,27 @@ export class ProjectileView {
     add(charge, halo, team, 0, -.08, 0, .9, .9, 1).rotation.x = -Math.PI / 2;
     add(charge, halo, frost ? ice : wind, 0, 0, 0, 1.3, 1.3, 1).rotation.x = -Math.PI / 2;
 
+    // The last visible sample can lag contact by one tick. Preserve that final
+    // segment on the same frame as authoritative hit feedback.
+    const terminalTrail = add(root, shaft, frost ? iceWake : windWake, 0, 0, 0, .055, 1, .055);
+    terminalTrail.rotation.x = Math.PI / 2;
+    terminalTrail.visible = false;
     root.position.set(projectile.x, 1.2, projectile.z);
     root.rotation.y = Math.atan2(projectile.dirX, projectile.dirZ);
     this.scene.add(root);
-    return { root, charge, bolt, from: root.position.clone(), target: root.position.clone(), tick, blend: 1 };
+    return {
+      root, charge, bolt, terminalTrail,
+      from: root.position.clone(), target: root.position.clone(), origin: root.position.clone(),
+      releaseOffset: new THREE.Vector3(), tick, blend: 1,
+      launched: tick >= projectile.launchTick, releaseAge: 0,
+    };
   }
 
-  update(projectiles: readonly Projectile[], tick: number, dt: number): void {
+  update(
+    projectiles: readonly Projectile[], tick: number, dt: number,
+    effects: readonly Effect[] = [], releasePosition?: ProjectileReleasePosition,
+  ): void {
+    const frame = Math.max(0, dt);
     this.active.clear();
     for (const projectile of projectiles) {
       this.active.add(projectile.id);
@@ -99,23 +126,72 @@ export class ProjectileView {
         view = this.create(projectile, tick);
         this.views.set(projectile.id, view);
       }
-      if (view.tick !== tick) {
-        view.from.copy(view.root.position);
-        view.target.set(projectile.x, 1.2, projectile.z);
-        view.tick = tick;
-        view.blend = 0;
-      }
-      view.blend = Math.min(1, view.blend + Math.max(0, dt) / .05);
-      view.root.position.lerpVectors(view.from, view.target, view.blend);
       const waiting = tick < projectile.launchTick;
+      if (waiting) {
+        if (view.tick !== tick) {
+          view.tick = tick;
+          view.blend = 0;
+        }
+        view.blend = Math.min(1, view.blend + frame / TICK_DURATION);
+        const release = releasePosition?.(projectile);
+        if (release) view.root.position.set(release.x, release.y, release.z);
+        else view.root.position.set(projectile.x, 1.2, projectile.z);
+        view.releaseOffset.copy(view.root.position).sub(view.origin);
+        view.from.copy(view.root.position);
+        view.target.copy(view.root.position);
+      } else {
+        const releasing = !view.launched;
+        if (releasing) {
+          view.launched = true;
+          view.releaseAge = 0;
+        } else view.releaseAge += frame;
+        if (view.tick !== tick || releasing) {
+          view.from.copy(view.root.position);
+          view.target.set(projectile.x, 1.2, projectile.z);
+          // A hand/bow release joins the authoritative path gradually, avoiding
+          // a jump back to the caster's centre on the launch tick.
+          const travel = view.target.distanceTo(view.origin);
+          view.target.addScaledVector(view.releaseOffset, Math.max(0, 1 - travel / RELEASE_BLEND_DISTANCE));
+          view.tick = tick;
+          view.blend = 0;
+        }
+        view.blend = Math.min(1, view.blend + frame / TICK_DURATION);
+        view.root.position.lerpVectors(view.from, view.target, view.blend);
+      }
       view.charge.visible = waiting;
       view.bolt.visible = !waiting;
+      // Unfold the travelling silhouette out of the same release focus.
+      view.bolt.scale.setScalar(.65 + .35 * Math.min(1, view.releaseAge / .08));
       const windup = 1 - Math.min(3, Math.max(0, projectile.launchTick - tick - view.blend)) / 3;
       view.charge.scale.setScalar(.23 + .4 * windup);
       view.charge.rotation.y = windup * Math.PI;
     }
     for (const [id, view] of this.views) {
       if (this.active.has(id)) continue;
+      if (view.terminalAge === undefined) {
+        const contact = effects.find(effect => effect.projectileId === id);
+        if (contact) {
+          const distance = Math.hypot(contact.x - view.root.position.x, contact.z - view.root.position.z);
+          if (distance > .001) view.root.rotation.y = Math.atan2(contact.x - view.root.position.x, contact.z - view.root.position.z);
+          view.root.position.set(contact.x, 1.2, contact.z);
+          view.charge.visible = false;
+          view.bolt.visible = true;
+          view.bolt.scale.setScalar(.65);
+          view.terminalTrail.visible = distance > .001;
+          view.terminalTrail.position.z = -distance / 2;
+          view.terminalTrail.scale.set(.055, distance, .055);
+          view.terminalAge = 0;
+          continue;
+        }
+      } else {
+        view.terminalAge += frame;
+        if (view.terminalAge < CONTACT_TRAIL_DURATION) {
+          const fade = 1 - view.terminalAge / CONTACT_TRAIL_DURATION;
+          view.terminalTrail.scale.x = view.terminalTrail.scale.z = .055 * fade;
+          view.bolt.scale.setScalar(.65 * fade);
+          continue;
+        }
+      }
       this.scene.remove(view.root);
       this.views.delete(id);
     }

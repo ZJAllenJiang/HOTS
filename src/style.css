@@ -93,3 +93,8 @@
   height: 100%;
   clip-path: none;
 }
+
+.skill[aria-pressed="true"] {
+  border-color: #87ecff;
+  box-shadow: 0 0 14px #63dfff60, inset 0 0 0 1px #87ecff;
+}

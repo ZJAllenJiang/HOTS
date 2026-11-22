@@ -1,5 +1,5 @@
 import './style.css';
-import {createGame,command,step} from './sim';
+import {castTarget,createGame,command,step} from './sim';
 import {createRenderer} from './render';
 import {mountUI} from './ui';
 import {mountDesktop} from './desktop';
@@ -30,20 +30,30 @@ function graphicsFailure(message:string){
   notice.querySelector('button')!.addEventListener('click',()=>location.reload(),{signal});
   root.inert=true;notice.querySelector('button')!.focus();
 }
-let aim={x:0,z:0};let armed:Key|null=null;
+let pointer:{x:number; y:number}|undefined;
+let pointerOnField=false;
+let armed:Key|null=null;
 const active=()=>graphicsReady&&!root.classList.contains('is-lobby')&&!state.paused&&state.winner===null;
-function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;}
-const ui=mountUI(root,{start,pause:()=>{if(graphicsReady)state.paused=!state.paused;},cast:key=>{if(active())armed=key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
+function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;pointer=undefined;pointerOnField=false;}
+const ui=mountUI(root,{start,pause:()=>{if(graphicsReady){state.paused=!state.paused;armed=null;}},cast:key=>{if(active())armed=armed===key?null:key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
 try {renderer=createRenderer(game,settings.quality);graphicsReady=true;}
 catch {game.replaceChildren();graphicsFailure('开始对局需要 WebGL 2。');}
 const desktop=mountDesktop(renderer,settings,()=>{state.paused=true;armed=null;});
 game.querySelector('canvas')?.addEventListener('webglcontextlost',e=>{e.preventDefault();graphicsFailure('3D 图形连接已中断，战斗已暂停。重新加载以恢复。');},{signal});
 game.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
-game.addEventListener('pointermove',e=>{if(renderer)aim=renderer.pick(e.clientX,e.clientY);},{signal});
+game.addEventListener('pointermove',e=>{pointer={x:e.clientX,y:e.clientY};pointerOnField=true;},{signal});
+game.addEventListener('pointerleave',()=>{pointerOnField=false;},{signal});
 game.addEventListener('pointerdown',e=>{
  if(!active()||!renderer||![0,2].includes(e.button))return;
- e.preventDefault();aim=renderer.pick(e.clientX,e.clientY);
- if(armed&&e.button===0&&!e.ctrlKey){command(state,{type:'cast',key:armed,...aim});armed=null;return;}
+ e.preventDefault();pointer={x:e.clientX,y:e.clientY};pointerOnField=true;
+ const aim=renderer.pick(pointer.x,pointer.y);
+ if(armed&&e.button===0&&!e.ctrlKey){
+   const player=state.units.find(unit=>unit.id===state.playerId);
+   if(player&&castTarget(state,player,armed,aim.x,aim.z)){
+     command(state,{type:'cast',key:armed,...aim});armed=null;
+   }
+   return;
+ }
  armed=null;
  const enemy=state.units.filter(u=>u.team===1&&u.alive&&Math.hypot(u.x-aim.x,u.z-aim.z)<1.5).sort((a,b)=>Math.hypot(a.x-aim.x,a.z-aim.z)-Math.hypot(b.x-aim.x,b.z-aim.z))[0];
  if(enemy)command(state,{type:'attack',id:enemy.id});
@@ -53,9 +63,16 @@ game.addEventListener('wheel',e=>{if(!active())return;e.preventDefault();rendere
 document.addEventListener('keydown',e=>{
  if(e.metaKey||e.ctrlKey||e.altKey||e.repeat||(e.target as HTMLElement).closest('input,textarea,select,[contenteditable="true"],.desktop-settings'))return;
  const k=e.key.toLowerCase();
- if(k==='escape'&&graphicsReady&&!root.classList.contains('is-lobby')){armed=null;state.paused=!state.paused;return;}
+ if(k==='escape'&&graphicsReady&&!root.classList.contains('is-lobby')){
+   if(armed)armed=null;
+   else state.paused=!state.paused;
+   return;
+ }
  if(!active())return;
- if(['q','w','e','r'].includes(k)){e.preventDefault();command(state,{type:'cast',key:k as Key,...aim});}
+ if(['q','w','e','r'].includes(k)){
+   e.preventDefault();armed=null;
+   if(pointer&&renderer)command(state,{type:'cast',key:k as Key,...renderer.pick(pointer.x,pointer.y)});
+ }
  if(k==='s'){e.preventDefault();command(state,{type:'stop'});}
 },{signal});
 window.addEventListener('blur',()=>{state.paused=true;armed=null;},{signal});
@@ -69,9 +86,12 @@ function loop(now:number){
    if(lobby){
      const live=renderer.showHero(ui.selectedHero,ui.showcase,document.hidden?0:dt);
      ui.showcase.parentElement?.classList.toggle('has-live-hero',live);
-   }else renderer.update(state,state.paused||state.winner!==null?0:dt);
+   }else{
+     const target=armed&&pointer&&pointerOnField&&active()?{key:armed,...renderer.pick(pointer.x,pointer.y)}:undefined;
+     renderer.update(state,state.paused||state.winner!==null?0:dt,target);
+   }
  }
- ui.update(state);frame=requestAnimationFrame(loop);
+ ui.update(state,armed);frame=requestAnimationFrame(loop);
 }frame=requestAnimationFrame(loop);
 Object.defineProperty(window,'__HOTS_DIAGNOSTICS__',{configurable:true,get:()=>({tick:state.tick,mode:state.mode,units:state.units.length,paused:state.paused,winner:state.winner,graphics:graphicsReady?'webgl2':'unavailable',settings:{...settings},player:state.units.find(u=>u.id===state.playerId),prototype:true})});
 if(import.meta.hot)import.meta.hot.dispose(()=>{abort.abort();cancelAnimationFrame(frame);renderer?.dispose();ui.destroy();desktop.destroy();});

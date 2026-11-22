@@ -1,20 +1,24 @@
 import * as THREE from 'three';
 import {GLTFLoader,type GLTF} from 'three/addons/loaders/GLTFLoader.js';
 import {clone} from 'three/addons/utils/SkeletonUtils.js';
-import type {Hero} from './contracts';
+import type {Hero,Key} from './contracts';
 import {inspectGLB} from './model-validation';
 import {ModelAnimation,type Motion} from './model-animation';
 import {createPrismWardenArt} from './prism-warden';
+import {createRangerArt} from './ranger-art';
+import {createGuardianArt} from './guardian-art';
 
 export type {Motion} from './model-animation';
 interface Template {gltf:GLTF;clips:Partial<Record<Motion,THREE.AnimationClip>>;height:number}
-export interface ModelInstance {root:THREE.Group;update(motion:'idle'|'run',dt:number,rate?:number):void;play(motion:'attack'|'cast'):void;dispose():void}
+export interface ModelInstance {root:THREE.Group;projectileAnchor?:THREE.Object3D;update(motion:'idle'|'run',dt:number,rate?:number):void;play(motion:'attack'|'cast',ability?:Key):void;dispose():void}
 export class HeroModels {
   private templates=new Map<Hero,Template>();
   private generations=new Map<Hero,number>();
   private dead=false;
   constructor(private changed:(hero:Hero)=>void){}
-  private readonly prismWarden=createPrismWardenArt();
+  private readonly originals: Record<Hero,{instantiate():ModelInstance;dispose():void}>= {
+    frost:createPrismWardenArt(),ranger:createRangerArt(),guardian:createGuardianArt(),
+  };
   async import(hero:Hero,data:ArrayBuffer){
     const report=inspectGLB(data);
     const generation=(this.generations.get(hero)??0)+1;this.generations.set(hero,generation);
@@ -36,7 +40,7 @@ export class HeroModels {
   }
   instantiate(hero:Hero):ModelInstance|null {
     if(this.dead)return null;
-    const t=this.templates.get(hero);if(!t)return hero==='frost'?this.prismWarden.instantiate():null;
+    const t=this.templates.get(hero);if(!t)return this.originals[hero].instantiate();
     const scene=clone(t.gltf.scene);
     // Measure the actual idle pose, not the unanimated bind pose.
     const pose=new THREE.AnimationMixer(scene);
@@ -54,7 +58,7 @@ export class HeroModels {
     return {root,update(motion,dt,rate){animation.update(motion,dt,rate);},play(motion){animation.play(motion);},
       dispose(){animation.dispose();scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
   }
-  dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();this.prismWarden.dispose();}
+  dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();Object.values(this.originals).forEach(art=>art.dispose());}
 }
 function disposeGLTF(gltf:GLTF){
   const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
