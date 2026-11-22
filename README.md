@@ -1,12 +1,12 @@
 # HOTS ARAM Lab — 浏览器战斗原型
 
-TypeScript + Three.js 的单线战斗开发原型。它用于验证浏览器输入、战斗模拟、场景表现与人机对局循环；目前使用原创几何占位表现和简化机制，**不代表已还原《风暴英雄》英雄、地图、技能或天赋，也没有多人联机服务**。
+TypeScript + Three.js 的单线战斗开发原型。这是使用原创英雄和场景素材的 3D 单线人机战斗原型。
 
 设计提案保留自 [PR #1](https://github.com/ZJAllenJiang/HOTS/pull/1) 的 `docs/browser-aram-design` 分支。提案中的阶段目标与待办保持原样；当前实现证据单独记录在 [实施状态](docs/implementation-status.md)，避免把设计目标当成已交付能力。
 
 ## 在线试玩
 
-已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。当前修正分支仅支持 WebGL 2 的 3D 战场；图形不可用时停止游戏并显示恢复提示。没有 2D 降级。吉安娜已接入带贴图和动画的 HOTS 社区移植模型；其余英雄仍为占位模型，技能仍为原型。
+已部署：[HOTS ARAM Lab](https://hots-aram-lab.zjallenjiang.chatgpt.site/)。站点访问范围沿用现有配置。战场需要 WebGL 2。大厅默认展示原创英雄霜棱术士。战斗中会在命中目标上方显示玩家造成和受到的实际伤害。
 
 右键或 Mac Control + 单击移动/攻击，左键攻击；触控板模式支持左键移动。右下角可选画质与操作方式。Q/W/E/R 朝鼠标位置施法，点击技能栏后左键选目标；S 停止，Esc 暂停。R 在实验等级 3 解锁，天赋在等级 2 选择。这里的规则是原型规则。
 
@@ -44,17 +44,17 @@ npm run build
 - [阶段与验收清单](openspec/changes/browser-aram-foundation/tasks.md)
 - [当前实现状态与缺口](docs/implementation-status.md)
 
-视觉与手感样片（M0）需要真实素材管线、动画与性能证据；完整人机首版（M2）需要固定原作 build 的完整技能/天赋与规则验收；联机首版（M3）需要权威服务器与多客户端测试。目前的可运行原型不能替代这些验收。
+3D 视觉与手感验收需要素材、动画和实机性能证据。人机首版需要完整的技能与天赋验证。联机首版需要权威服务器与多客户端测试。
 
-仓库 MIT LICENSE 适用于项目原创代码/文档；第三方依赖与外部素材分别遵守其许可。当前未引入或分发暴雪原作素材。
+仓库 MIT LICENSE 适用于项目原创代码/文档；第三方依赖与外部素材分别遵守其许可。当前试玩使用原创模型和特效。
 
 ## 3D 修正进度
 
-见 [3D、模型与节奏修正记录](docs/changes/2026-11-08-3d-correction.md)。吉安娜模型候选已完成转换、格式和离线画面检查，并部署到第三版。详见 [模型接入记录](docs/assets/jaina-integration.md)。原版技能、特效和真实 Mac/Windows 浏览器验收仍未完成。
+[实施状态](docs/implementation-status.md) 记录当前 3D 素材、特效、伤害飘字与实机验收进度。
 
 ### Offline build and Blender assets
 
-Run `npm run build:offline` to export `dist-offline/hots-aram-offline.html`. Open it in a desktop browser with WebGL 2. The file embeds the runtime, styles, Jaina model and portrait, and arena tower. The build reports raw bytes and estimated gzip/Brotli delivery sizes. The normal `npm run build` still produces the web deployment in `dist/`.
+Run `npm run build:offline` to export `dist-offline/hots-aram-offline.html`. Open it in a desktop browser with WebGL 2. The file embeds the runtime, styles, procedural character art, and arena tower. The build reports raw bytes and estimated gzip/Brotli delivery sizes. The normal `npm run build` still produces the web deployment in `dist/`.
 
 The arena tower was authored in Blender 4.3.2. To regenerate the GLB, run:
 

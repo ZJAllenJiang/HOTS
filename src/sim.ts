@@ -11,9 +11,9 @@ export const ABILITIES: Record<Hero,Record<Key,Ability>> = {
   },
   frost: {
     q:{name:'Ice Lance',cost:35,cooldown:5,range:14,description:'Fire an ice bolt that deals 220 damage to the first enemy hit.'},
-    w:{name:'Blizzard',cost:55,cooldown:9,range:13,description:'Deal 180 damage around the selected point.'},
+    w:{name:'Prism Rain',cost:55,cooldown:9,range:13,description:'Deal 180 damage around the selected point.'},
     e:{name:'Frost Step',cost:40,cooldown:12,range:8,description:'Blink to the selected point and restore 100 health.'},
-    r:{name:'Frozen Orb',cost:100,cooldown:35,range:17,description:'Deal 420 damage in a large area.'},
+    r:{name:'Glacial Array',cost:100,cooldown:35,range:17,description:'Deal 420 damage in a large area.'},
   },
   guardian: {
     q:{name:'Shield Slam',cost:30,cooldown:5,range:7,description:'Deal 160 damage around the selected point.'},
@@ -50,7 +50,7 @@ function addUnit(s:State, team:0|1,kind:Unit['kind'],hero:Hero,x:number,z:number
 }
 
 export function createGame(mode:Mode,hero:Hero):State {
-  const s:State={mode,time:0,tick:0,units:[],effects:[],projectiles:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextProjectileId:1,nextWave:PACING.firstWave};
+  const s:State={mode,time:0,tick:0,units:[],effects:[],damageEvents:[],nextDamageId:1,projectiles:[],playerId:1,paused:false,winner:null,teams:[{xp:0,level:1,kills:0},{xp:0,level:1,kills:0}],talent:null,nextId:1,nextProjectileId:1,nextWave:PACING.firstWave};
   const player=addUnit(s,0,'hero',hero,mode==='training'?-10:-24,0);s.playerId=player.id;
   if(mode==='training'){
     addUnit(s,1,'dummy','guardian',0,0);addUnit(s,1,'dummy','guardian',7,-5);addUnit(s,1,'dummy','guardian',7,5);
@@ -64,10 +64,16 @@ export function createGame(mode:Mode,hero:Hero):State {
 }
 
 function grantXP(s:State,team:number,amount:number){const t=s.teams[team];t.xp+=amount;t.level=Math.min(20,1+Math.floor(t.xp/1000));}
-function damage(s:State,source:Unit,target:Unit,amount:number){
+function damage(s:State,source:Unit,target:Unit,amount:number,ability?:Key){
   if(!legalTarget(s,source,target))return;
   const talent=source.id===s.playerId&&s.talent===0?1.2:1;
-  target.hp=Math.max(0,target.hp-amount*talent*(1+.04*(s.teams[source.team].level-1)));
+  const previousHp=target.hp;
+  target.hp=Math.max(0,previousHp-amount*talent*(1+.04*(s.teams[source.team].level-1)));
+  if(previousHp>target.hp&&(target.id===s.playerId||source.id===s.playerId)){
+    const y=target.kind==='core'?5.1:target.kind==='tower'?4.4:target.kind==='minion'?2:3.2;
+    s.damageEvents.push({id:s.nextDamageId++,time:s.time,x:target.x,y,z:target.z,
+      amount:previousHp-target.hp,incoming:target.id===s.playerId,ability});
+  }
   if(target.hp>0)return;
   target.alive=false;target.target=null;target.dest=null;target.deaths++;
   if(target.kind==='hero'){
@@ -98,19 +104,20 @@ function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
     return true;
   }
   if(key==='e'){
+    const origin={x:u.x,z:u.z};
     if(u.hero==='guardian'){
       for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<6)ally.hp=Math.min(ally.maxHp,ally.hp+240);
     }else{u.x=x;u.z=z;u.positionEpoch=(u.positionEpoch??0)+1;u.dest=null;if(u.hero==='frost')u.hp=Math.min(u.maxHp,u.hp+100);}
-    s.effects.push({x,z,radius:2,life:.4,team:u.team,kind:'heal'});return true;
+    s.effects.push({x,z,radius:hero==='guardian'?6:2,life:.45,team:u.team,kind:'heal',hero,ability:key,origin});return true;
   }
   const amount=key==='q'?160:key==='w'?(u.hero==='ranger'?140:u.hero==='frost'?180:150):(u.hero==='ranger'?360:u.hero==='frost'?420:320);
   const radius=key==='r'?6:key==='w'?4.5:3.5;
   for(const target of s.units){
     if(!target.alive||target.team===u.team)continue;
-    if(distance(target,{x,z})<=radius)damage(s,u,target,amount);
+    if(distance(target,{x,z})<=radius)damage(s,u,target,amount,key);
   }
   if(u.hero==='guardian'&&(key==='w'||key==='r'))u.hp=Math.min(u.maxHp,u.hp+(key==='r'?200:100));
-  s.effects.push({x,z,radius,life:.55,team:u.team,kind:key==='q'?'shot':key==='r'?'ultimate':'burst'});
+  s.effects.push({x,z,radius,life:key==='r'?.75:.65,team:u.team,kind:key==='q'?'shot':key==='r'?'ultimate':'burst',hero,ability:key});
   return true;
 }
 
@@ -153,10 +160,11 @@ function advanceProjectiles(s:State){
       }
     }
     if(firstTarget){
-      damage(s,source,firstTarget,projectile.hero==='ranger'?190:220);
+      damage(s,source,firstTarget,projectile.hero==='ranger'?190:220,'q');
       s.effects.push({
         x:projectile.x+projectile.dirX*firstContact,z:projectile.z+projectile.dirZ*firstContact,
-        radius:1,life:.25,team:projectile.team,kind:'shot',
+        radius:1,life:.4,team:projectile.team,kind:'shot',hero:projectile.hero,ability:'q',
+        origin:{x:projectile.x-projectile.dirX,z:projectile.z-projectile.dirZ},
       });
       if(s.winner!==null)return;
       continue;
@@ -185,6 +193,7 @@ function tick(s:State){
   s.tick++;s.time=s.tick*FIXED_DT;
   if(s.mode==='battle'&&s.time>=s.nextWave)wave(s);
   s.effects=s.effects.filter(e=>(e.life-=FIXED_DT)>0);
+  s.damageEvents=s.damageEvents.filter(event=>s.time-event.time<.85);
   // Stable ID order and fixed-size ticks make identical commands replay identically.
   for(const u of s.units){
     if(!u.alive){

@@ -37,7 +37,6 @@ const ui=mountUI(root,{start,pause:()=>{if(graphicsReady)state.paused=!state.pau
 try {renderer=createRenderer(game,settings.quality);graphicsReady=true;}
 catch {game.replaceChildren();graphicsFailure('开始对局需要 WebGL 2。');}
 const desktop=mountDesktop(renderer,settings,()=>{state.paused=true;armed=null;});
-document.addEventListener('hots:model-error',()=>{const notice=document.createElement('div');notice.className='model-load-error';notice.setAttribute('role','alert');notice.textContent='英雄模型载入失败，当前显示 3D 占位模型。请刷新重试。';document.body.append(notice);},{signal});
 game.querySelector('canvas')?.addEventListener('webglcontextlost',e=>{e.preventDefault();graphicsFailure('3D 图形连接已中断，战斗已暂停。重新加载以恢复。');},{signal});
 game.addEventListener('contextmenu',e=>e.preventDefault(),{signal});
 game.addEventListener('pointermove',e=>{if(renderer)aim=renderer.pick(e.clientX,e.clientY);},{signal});

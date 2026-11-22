@@ -4,7 +4,7 @@ import {clone} from 'three/addons/utils/SkeletonUtils.js';
 import type {Hero} from './contracts';
 import {inspectGLB} from './model-validation';
 import {ModelAnimation,type Motion} from './model-animation';
-import manifest from './model-manifest.json';
+import {createPrismWardenArt} from './prism-warden';
 
 export type {Motion} from './model-animation';
 interface Template {gltf:GLTF;clips:Partial<Record<Motion,THREE.AnimationClip>>;height:number}
@@ -14,16 +14,8 @@ export class HeroModels {
   private generations=new Map<Hero,number>();
   private dead=false;
   constructor(private changed:(hero:Hero)=>void){}
-  async loadDefaults(){
-    await Promise.all(Object.entries(manifest).map(async([hero,entry])=>{
-      if(!entry.url)return;
-      try {
-        const response=await fetch(entry.url);if(!response.ok)throw new Error('Model request failed');
-        await this.import(hero as Hero,await response.arrayBuffer(),hero==='frost');
-      }catch(error){console.warn(`Hero model ${hero} not available`,error);document.dispatchEvent(new CustomEvent("hots:model-error",{detail:{hero}}));}
-    }));
-  }
-  async import(hero:Hero,data:ArrayBuffer,jainaProfile=false){
+  private readonly prismWarden=createPrismWardenArt();
+  async import(hero:Hero,data:ArrayBuffer){
     const report=inspectGLB(data);
     const generation=(this.generations.get(hero)??0)+1;this.generations.set(hero,generation);
     const gltf=await new GLTFLoader().parseAsync(data,'');
@@ -35,12 +27,6 @@ export class HeroModels {
     for(const [motion,pattern] of Object.entries({idle:/stand|idle/i,run:/walk|run/i,attack:/attack/i,cast:/spell(?!.*channel)|cast/i})){
       const clip=gltf.animations.find(c=>pattern.test(c.name));if(clip)clips[motion as Motion]=clip;
     }
-    if(jainaProfile){
-      const names={idle:'Stand Ready',run:'Walk',attack:'Attack - 1',cast:'Spell Two'} as const;
-      for(const motion of Object.keys(names) as Motion[]){
-        const clip=gltf.animations.find(c=>c.name===names[motion]);if(clip)clips[motion]=clip;
-      }
-    }
     const previous=this.templates.get(hero);
     this.templates.set(hero,{gltf,clips,height:hero==='guardian'?2.3:2.6});
     // Remove old instances before releasing the shared geometry and textures.
@@ -49,7 +35,8 @@ export class HeroModels {
     return `已导入：${report.meshes} 个网格，${report.animations} 段动作，${report.images} 张贴图。${missing.length?'缺少动作：'+missing.join(' / ')+'，尚未通过验收。':'基础动作齐全；外观、特效及性能仍需人工验收。'}`;
   }
   instantiate(hero:Hero):ModelInstance|null {
-    const t=this.templates.get(hero);if(!t)return null;
+    if(this.dead)return null;
+    const t=this.templates.get(hero);if(!t)return hero==='frost'?this.prismWarden.instantiate():null;
     const scene=clone(t.gltf.scene);
     // Measure the actual idle pose, not the unanimated bind pose.
     const pose=new THREE.AnimationMixer(scene);
@@ -67,7 +54,7 @@ export class HeroModels {
     return {root,update(motion,dt,rate){animation.update(motion,dt,rate);},play(motion){animation.play(motion);},
       dispose(){animation.dispose();scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
   }
-  dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();}
+  dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();this.prismWarden.dispose();}
 }
 function disposeGLTF(gltf:GLTF){
   const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
