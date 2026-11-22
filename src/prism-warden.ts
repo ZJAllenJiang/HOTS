@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { ModelInstance } from './model-assets';
+import type {Key} from './contracts';
+import {PROJECTILE_RULES} from './projectiles';
 
 export function createPrismWardenArt() {
   // One renderer owns these resources, while each actor owns its pose.
@@ -30,8 +32,8 @@ export function createPrismWardenArt() {
       const mesh = new THREE.Mesh(shape, surface);
       mesh.position.set(x, y, z);
       mesh.scale.set(width, height, depth);
-      mesh.castShadow = surface !== crystal && surface !== light;
-      mesh.receiveShadow = mesh.castShadow;
+      mesh.receiveShadow = surface !== crystal && surface !== light;
+      mesh.castShadow = mesh.receiveShadow && width > .11 && height > .14 && depth > .08;
       parent.add(mesh);
       return mesh;
     }
@@ -95,7 +97,8 @@ export function createPrismWardenArt() {
     });
 
     const conductor = joint(arms[1].elbow, .111, -.303, .051);
-    piece(conductor, tube, dark, 0, .074, 0, .067, .53, .067);
+    piece(conductor, tube, dark, 0, -.18, 0, .067, 1.05, .067);
+    piece(conductor, tube, brass, 0, -.685, 0, .077, .12, .077);
     piece(conductor, tube, brass, 0, .289, 0, .085, .075, .083);
     for (const side of [-1, 1]) {
       piece(conductor, box, slate, side * .103, .357, 0, .102, .27, .135).rotation.z = -side * .62;
@@ -103,11 +106,13 @@ export function createPrismWardenArt() {
       piece(conductor, prismShape, brass, side * .18, .595, .012, .066, .1, .067);
     }
     const focus = joint(conductor, 0, .545, 0);
+    const release = joint(focus, 0, .16, 0);
     piece(focus, prismShape, crystal, 0, 0, 0, .124, .242, .124);
     piece(focus, prismShape, light, 0, .258, 0, .034, .064, .034);
 
     let elapsed = 0, stride = 0, running = 0, actionTime = 0;
     let action: 'attack' | 'cast' | undefined;
+    let ability:Key|undefined;
     function update(motion: 'idle' | 'run', dt: number, rate = 1) {
       elapsed += dt;
       running = THREE.MathUtils.lerp(running, motion === 'run' ? 1 : 0, 1 - Math.exp(-14 * dt));
@@ -133,7 +138,10 @@ export function createPrismWardenArt() {
       if (actionTime >= duration) action = undefined;
       const progress = Math.min(actionTime / duration, 1);
       const charge = Math.sin(progress * Math.PI);
-      const cast = action === 'cast' ? charge : 0;
+      const releaseTime = PROJECTILE_RULES.windupTicks * .05;
+      const cast = action !== 'cast' ? 0 : ability !== 'q' ? charge : actionTime < releaseTime
+        ? Math.sin(actionTime / releaseTime * Math.PI / 2)
+        : Math.max(0, (duration - actionTime) / (duration - releaseTime)) ** 2;
       const strike = action === 'attack' ? Math.sin(progress * 2 * Math.PI - .7) * charge : 0;
       torso.rotation.set(.16 * running - .09 * cast + .12 * strike, -.12 * step - .35 * strike, .035 * step);
       head.rotation.set(-torso.rotation.x * .67 - cast * .09, .07 * step + .22 * strike, .026 * Math.sin(elapsed * 1.8));
@@ -148,7 +156,7 @@ export function createPrismWardenArt() {
       focus.scale.setScalar(1 + .27 * cast + .12 * Math.abs(strike));
     }
     update('idle', 0);
-    return { root, update, play(motion) { action = motion; actionTime = 0; }, dispose() { root.removeFromParent(); } };
+    return { root, projectileAnchor: release, update, play(motion,key) { action = motion; ability=key; actionTime = 0; }, dispose() { root.removeFromParent(); } };
   }
 
   return { instantiate, dispose() {

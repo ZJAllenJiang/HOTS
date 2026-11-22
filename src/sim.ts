@@ -22,6 +22,12 @@ export const ABILITIES: Record<Hero,Record<Key,Ability>> = {
     r:{name:'Judgment',cost:90,cooldown:35,range:11,description:'Deal 320 area damage and restore 200 health.'},
   },
 };
+export function isProjectileCast(hero:Hero,key:Key){return key==='q'&&hero!=='guardian';}
+export function areaRadius(hero:Hero,key:Key){
+  if(key==='e')return hero==='guardian'?6:0;
+  if(isProjectileCast(hero,key))return 0;
+  return key==='r'?6:key==='w'?4.5:3.5;
+}
 export const TALENTS = [
   {name:'Power',description:'Your basic attacks and abilities deal 20% more damage.'},
   {name:'Tempo',description:'Your basic attacks recharge 30% faster.'},
@@ -83,18 +89,24 @@ function damage(s:State,source:Unit,target:Unit,amount:number,ability?:Key){
   else if(target.kind==='tower')grantXP(s,source.team,400);
   else if(target.kind==='core'){s.winner=source.team;s.projectiles=[];}
 }
-function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
+export function castTarget(s:State,u:Unit,key:Key,x:number,z:number){
   const a=ABILITIES[u.hero][key];
-  if(!u.alive||u.cooldowns[key]>1e-8||u.mana<a.cost||!Number.isFinite(x)||!Number.isFinite(z)||distance(u,{x,z})>a.range)return false;
-  if(key==='r'&&s.teams[u.team].level<3)return false;
-  x=clamp(x,-35,35);z=clamp(z,-9,9);
+  if(!u.alive||u.cooldowns[key]>1e-8||u.mana<a.cost||!Number.isFinite(x)||!Number.isFinite(z)||distance(u,{x,z})>a.range)return;
+  if(key==='r'&&s.teams[u.team].level<3)return;
+  const target={x:clamp(x,-35,35),z:clamp(z,-9,9)};
+  if(isProjectileCast(u.hero,key)&&target.x===u.x&&target.z===u.z)return;
+  return target;
+}
+function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
+  const target=castTarget(s,u,key,x,z);
+  if(!target)return false;
+  ({x,z}=target);
+  const a=ABILITIES[u.hero][key];
   const hero=u.hero;
-  const projectile=key==='q'&&hero!=='guardian';
   const dx=x-u.x,dz=z-u.z;
-  if(projectile&&dx===0&&dz===0)return false;
   u.mana-=a.cost;u.cooldowns[key]=a.cooldown;
-  u.visualAction={sequence:(u.visualAction?.sequence??0)+1,kind:'cast',time:s.time,x,z};
-  if(projectile){
+  u.visualAction={sequence:(u.visualAction?.sequence??0)+1,kind:'cast',time:s.time,x,z,ability:key};
+  if(key==='q'&&hero!=='guardian'){
     const aimDistance=Math.hypot(dx,dz);
     s.projectiles.push({
       id:s.nextProjectileId++,sourceId:u.id,team:u.team,hero,x:u.x,z:u.z,
@@ -106,12 +118,12 @@ function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
   if(key==='e'){
     const origin={x:u.x,z:u.z};
     if(u.hero==='guardian'){
-      for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<6)ally.hp=Math.min(ally.maxHp,ally.hp+240);
+      for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<areaRadius(hero,key))ally.hp=Math.min(ally.maxHp,ally.hp+240);
     }else{u.x=x;u.z=z;u.positionEpoch=(u.positionEpoch??0)+1;u.dest=null;if(u.hero==='frost')u.hp=Math.min(u.maxHp,u.hp+100);}
-    s.effects.push({x,z,radius:hero==='guardian'?6:2,life:.45,team:u.team,kind:'heal',hero,ability:key,origin});return true;
+    s.effects.push({x,z,radius:areaRadius(hero,key)||2,life:.45,team:u.team,kind:'heal',hero,ability:key,origin});return true;
   }
   const amount=key==='q'?160:key==='w'?(u.hero==='ranger'?140:u.hero==='frost'?180:150):(u.hero==='ranger'?360:u.hero==='frost'?420:320);
-  const radius=key==='r'?6:key==='w'?4.5:3.5;
+  const radius=areaRadius(hero,key);
   for(const target of s.units){
     if(!target.alive||target.team===u.team)continue;
     if(distance(target,{x,z})<=radius)damage(s,u,target,amount,key);
@@ -163,7 +175,7 @@ function advanceProjectiles(s:State){
       damage(s,source,firstTarget,projectile.hero==='ranger'?190:220,'q');
       s.effects.push({
         x:projectile.x+projectile.dirX*firstContact,z:projectile.z+projectile.dirZ*firstContact,
-        radius:1,life:.4,team:projectile.team,kind:'shot',hero:projectile.hero,ability:'q',
+        radius:1,life:.4,team:projectile.team,kind:'shot',hero:projectile.hero,ability:'q',projectileId:projectile.id,
         origin:{x:projectile.x-projectile.dirX,z:projectile.z-projectile.dirZ},
       });
       if(s.winner!==null)return;

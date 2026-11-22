@@ -1,14 +1,18 @@
 import {CombatFx} from './combat-fx';
+import {AbilityAim} from './ability-aim';
 import {DamageNumbers} from './damage-numbers';
 import {createLaneMinionArt} from './lane-minion-art';
 import {HeroShowcase} from './hero-showcase';
 import {loadArenaTower} from './arena-tower';
+import {batchStaticArena} from './static-arena';
 import {ProjectileView} from './projectile-view';
 import {Locomotion,gaitRate,smoothing} from './locomotion';
 import * as THREE from 'three';
 import {QUALITY,type Quality} from './settings';
 import {HeroModels,type ModelInstance} from './model-assets';
-import type { Renderer, State, Unit, Hero } from './contracts';
+import type {CastAim, Projectile, Renderer, State, Unit, Hero} from './contracts';
+import {PROJECTILE_RULES} from './projectiles';
+import {isProjectileCast} from './sim';
 
 // Original, procedural arena art. All geometry is local to this prototype.
 export function createRenderer(container: HTMLElement,quality:Quality='balanced'): Renderer {
@@ -34,17 +38,15 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const colors = { blue: 0x4edcff, purple: 0xff688e, gold: 0xd6b573, stone: 0x53606a, dark: 0x24343f };
   const mats = new Map<string, THREE.MeshStandardMaterial>();
   const geometries: THREE.BufferGeometry[] = [];
+  let buildingArena = true;
+  const arenaMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
   function geo<T extends THREE.BufferGeometry>(g: T): T { geometries.push(g); return g; }
   const cube = geo(new THREE.BoxGeometry(1, 1, 1));
-  const ball = geo(new THREE.SphereGeometry(1, 12, 8));
   const cone = geo(new THREE.ConeGeometry(1, 1, 6));
   const cylinder = geo(new THREE.CylinderGeometry(1, 1, 1, 10));
   const crystalGeo = geo(new THREE.OctahedronGeometry(1, 0));
   const plane = geo(new THREE.PlaneGeometry(1, 1));
   const ringGeometries = new Map<string, THREE.RingGeometry>();
-  const bowGeometry = geo(new THREE.TorusGeometry(.56, .055, 6, 20, Math.PI * 1.4));
-  const shieldGeometry = geo(new THREE.CylinderGeometry(.63, .48, .15, 6));
-  const enamelGeometry = geo(new THREE.CylinderGeometry(.51, .4, .17, 6));
   const haloGeometry = geo(new THREE.TorusGeometry(1.3, .055, 6, 48));
   function mat(color: number, metalness = .12, roughness = .75, glow = 0): THREE.MeshStandardMaterial {
     const key = `${color}/${metalness}/${roughness}/${glow}`;
@@ -52,10 +54,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     return mats.get(key)!;
   }
   function mesh(parent: THREE.Object3D, g: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1) {
-    const m = new THREE.Mesh(g, material); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+    const m = new THREE.Mesh(g, material); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; parent.add(m); if (buildingArena) arenaMeshes.push(m); return m;
   }
   function box(p: THREE.Object3D, c: number, x: number, y: number, z: number, sx: number, sy: number, sz: number) { return mesh(p, cube, mat(c), x, y, z, sx, sy, sz); }
-  function orb(p: THREE.Object3D, c: number, x: number, y: number, z: number, sx: number, sy = sx, sz = sx, glow = 0) { return mesh(p, ball, mat(c, .2, .6, glow), x, y, z, sx, sy, sz); }
   function cyl(p: THREE.Object3D, c: number, x: number, y: number, z: number, radius: number, height: number) { return mesh(p, cylinder, mat(c), x, y, z, radius, height, radius); }
   function ring(p: THREE.Object3D, c: number, radius: number, width: number, y: number, glow = .6) {
     const key = `${radius}/${width}`;
@@ -136,8 +137,11 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       mesh(p, crystalGeo, mat(sign < 0 ? colors.blue : colors.purple, .5, .3, 1), 0, 4.25, 0, .5, .85, .5);
     }
   }
+  buildingArena = false;
+  geometries.push(...batchStaticArena(scene, arenaMeshes));
+  arenaMeshes.length = 0;
 
-  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; stride:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; minion?:ReturnType<ReturnType<typeof createLaneMinionArt>['instantiate']>; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
+  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; minion?:ReturnType<ReturnType<typeof createLaneMinionArt>['instantiate']>; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   let tower: Awaited<ReturnType<typeof loadArenaTower>> | undefined;
   let disposed = false;
@@ -166,78 +170,25 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     const bg = mesh(bar, plane, hpBg, 0, 0, 0, width + .09, .18, 1); bg.castShadow = false; bg.renderOrder = 30;
     const health = mesh(bar, plane, u.team === 0 ? hpAlly : hpEnemy, 0, 0, .01, width, .085, 1); health.castShadow = false; health.renderOrder = 31;
     let mana: THREE.Mesh | undefined;
-    if (u.kind === 'hero') { mana = mesh(bar, plane, manaMaterial, 0, -.095, .01, width, .035, 1); mana.renderOrder = 31; }
+    if (u.kind === 'hero') { mana = mesh(bar, plane, manaMaterial, 0, -.095, .01, width, .035, 1); mana.castShadow = false; mana.renderOrder = 31; }
     return { bar, health, mana };
   }
   function makeUnit(u: Unit): Visual {
     const root = new THREE.Group(); root.position.set(u.x, 0, u.z); scene.add(root);
     const body = new THREE.Group(); root.add(body);
     const tc = u.team === 0 ? colors.blue : colors.purple;
-    const armor = u.team === 0 ? 0x41768f : 0x80608a;
     const trim = mat(0xe4c389, .7, .35);
     let minion: Visual['minion'];
-    let weapon: THREE.Group | undefined, glow: THREE.Object3D | undefined;
+    let glow: THREE.Object3D | undefined;
+    let model: ModelInstance | null = null;
     let barHeight = 2.8, barWidth = 1.65;
     if (u.kind === 'hero' || u.kind === 'dummy') {
       ring(root, tc, u.hero === 'guardian' ? .98 : .8, .075, .08, .8);
       ring(root, 0xe6e3b0, u.hero === 'guardian' ? .87 : .69, .025, .085, .25);
-      const skin = u.hero === 'frost' ? 0xe1ebeb : 0xd5ae91;
-      const suit = u.hero === 'ranger' ? 0x304f62 : u.hero === 'frost' ? 0x6c8ab0 : armor;
-      // The model faces +Z, its orientation follows movement and attack targets.
-      const broad = u.hero === 'guardian' ? 1.2 : .8;
-      for (const s of [-1, 1]) {
-        box(body, 0x263a4b, s * .22, .49, 0, .26 * broad, .65, .29);
-        box(body, 0x334858, s * .22, .19, .12, .3 * broad, .26, .49);
-      }
-      const torso = mesh(body, cone, mat(suit, .35, .55), 0, 1.2, 0, .56 * broad, .88, .4); torso.rotation.z = Math.PI;
-      box(body, 0xc4a66d, 0, .91, .04, .8 * broad, .12, .42);
-      orb(body, skin, 0, 1.98, .015, .25, .32, .25);
-      box(body, 0x202d3d, 0, 1.66, 0, .28, .17, .24);
-      for (const s of [-1, 1]) {
-        orb(body, u.hero === 'guardian' ? 0xd3bf85 : suit, s * .48 * broad, 1.5, 0, .29 * broad, .27, .3);
-        const arm = box(body, suit, s * .51 * broad, 1.17, .1, .23, .51, .23); arm.rotation.z = s * .16;
-        orb(body, skin, s * .54 * broad, .91, .17, .13);
-      }
-      // Tailored cape, shoulder clasp, and a strong individual weapon silhouette.
-      const cape = mesh(body, cone, mat(u.hero === 'ranger' ? 0x263949 : u.hero === 'frost' ? 0xcee1ed : 0x9b503a), 0, 1.03, -.27, .61 * broad, 1.26, .25); cape.rotation.z = Math.PI;
-      cape.rotation.x = -.12;
-      weapon = new THREE.Group(); body.add(weapon);
-      if (u.hero === 'ranger') {
-        mesh(body, ball, mat(0x293e52), 0, 2.04, -.08, .32, .38, .3);
-        box(body, skin, 0, 1.97, .228, .31, .23, .06);
-        for (const s of [-1, 1]) { const ear = mesh(body, cone, mat(skin), s * .3, 2.01, .02, .105, .32, .08); ear.rotation.z = -s * 1.15; }
-        box(body, 0xc9ad74, 0, 1.45, .35, .14, .5, .08).rotation.z = -.55;
-        const quiver = cyl(body, 0x6a4d38, .3, 1.49, -.4, .17, .74); quiver.rotation.z = -.3;
-        for (let i = 0; i < 3; i++) { const arrow = cyl(body, 0xc5b698, .18 + i * .08, 1.9, -.42, .015, .5); arrow.rotation.z = -.3; }
-        const bow = mesh(weapon, bowGeometry, trim, -.68, 1.25, .35); bow.rotation.set(0, .35, -Math.PI * .2);
-        const string = box(weapon, 0xc4d8d1, -.66, 1.27, .35, .018, 1.03, .018); string.rotation.z = -.12;
-        box(weapon, 0xddd0ac, -.33, 1.2, .53, .8, .025, .025);
-        barHeight = 2.75;
-      } else if (u.hero === 'frost') {
-        const hair = mesh(body, cone, mat(0xe5eff7, .2, .35), 0, 2.19, -.02, .31, .52, .3); hair.rotation.x = -.2;
-        for (const s of [-1, 1]) {
-          mesh(body, crystalGeo, mat(0x9fdaed, .4, .25, .3), s * .45, 1.6, -.02, .16, .34, .23).rotation.z = -s * .5;
-          box(body, 0xc8d6e4, s * .29, .68, .02, .15, .78, .42).rotation.z = -s * .2;
-        }
-        const staff = cyl(weapon, 0xc9b181, .68, 1.33, .13, .045, 2.45); staff.rotation.z = -.06;
-        glow = mesh(weapon, crystalGeo, mat(0x8ceaff, .4, .2, 1.2), .75, 2.65, .13, .23, .42, .23);
-        ring(weapon, 0xb6f0ff, .35, .025, 2.57, .8).position.x = .75;
-        barHeight = 3.15;
-      } else {
-        box(body, 0xb8b6a1, 0, 2.03, 0, .61, .53, .53);
-        box(body, 0x172d3b, 0, 2.07, .28, .44, .08, .025);
-        box(body, 0xd1ae70, 0, 2.35, 0, .12, .16, .5);
-        box(body, 0xd5b980, 0, 1.39, .35, .46, .48, .09);
-        mesh(body, crystalGeo, mat(tc, .5, .2, .7), 0, 1.45, .44, .13, .17, .065);
-        const shield = new THREE.Group(); shield.position.set(-.75, 1.1, .38); body.add(shield);
-        const face = mesh(shield, shieldGeometry, trim, 0, 0, 0); face.rotation.x = Math.PI / 2;
-        const enamel = mesh(shield, enamelGeometry, mat(armor), 0, 0, .04); enamel.rotation.x = Math.PI / 2;
-        box(shield, 0xe5c98e, 0, 0, .15, .1, .75, .05); box(shield, 0xe5c98e, 0, 0, .15, .61, .1, .05);
-        cyl(weapon, 0x9d7e50, .77, 1.08, .15, .07, 1.45);
-        box(weapon, 0xc9b78d, .77, 1.83, .15, .74, .4, .4);
-        box(weapon, 0x7c959f, .77, 1.83, .15, .39, .46, .45);
-        barHeight = 2.95; barWidth = 1.9;
-      }
+      model = models.instantiate(u.hero);
+      if (model) body.add(model.root);
+      if (u.hero === 'guardian') { barHeight = 2.95; barWidth = 1.9; }
+      if (u.hero === 'frost') barHeight = 3.15;
     } else if (u.kind === 'minion') {
       minion=laneMinions.instantiate(u.team,u.id);
       body.add(minion.root);
@@ -271,11 +222,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       const halo = mesh(body, haloGeometry, trim, 0, 2.8, 0); halo.rotation.x = .5;
       barHeight = 4.9; barWidth = 3;
     }
-    const model=(u.kind==='hero'||u.kind==='dummy')?models.instantiate(u.hero):null;
-    if(model){body.clear();body.add(model.root);weapon=undefined;glow=undefined;}
     body.rotation.y=u.team===0?Math.PI/2:-Math.PI/2;
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, stride:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, minion, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, minion, root, body, ...bars, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
@@ -283,8 +232,20 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const combatFx = new CombatFx(scene);
   const damageNumbers = new DamageNumbers(container);
   const projectileView = new ProjectileView(scene);
+  const abilityAim = new AbilityAim();
+  scene.add(abilityAim.root);
+  const releasePoint = new THREE.Vector3();
+  function projectileRelease(projectile: Readonly<Projectile>) {
+    const visual=visuals.get(projectile.sourceId);
+    const source=unitsById.get(projectile.sourceId);
+    if(!visual||!source?.alive||source.visualAction?.ability!=='q')return;
+    const anchor=visual.model?.projectileAnchor;
+    if(anchor)return anchor.getWorldPosition(releasePoint);
+    const position=visual.root.position;
+    return releasePoint.set(position.x+projectile.dirX*.6,1.5,position.z+projectile.dirZ*.6);
+  }
   const selection = new THREE.Group(); scene.add(selection); ring(selection, 0xffe3a0, 1.08, .035, .1, 1.1);
-  const active = new Set<number>();
+  const unitsById = new Map<number, Unit>();
   let elapsed = 0; let lastState:State|undefined;
   let surface = container;
   function resize() {
@@ -316,7 +277,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     renderer.render(showcase.scene, showcase.camera);
     return true;
   }
-  function update(s: State, dt: number) {
+  function update(s: State, dt: number, aim?: CastAim) {
     if (surface !== container) {
       showcase.clear();
       attach(container);
@@ -332,12 +293,13 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       lastState = s;
     }
     const frame = Math.min(Math.max(dt, 0), .1); elapsed += frame;
-    active.clear();
-    const player = s.units.find(u => u.id === s.playerId);
+    unitsById.clear();
+    for (const u of s.units) unitsById.set(u.id, u);
+    const player = unitsById.get(s.playerId);
     if (player) { focus.x += (player.x * .28 - focus.x) * smoothing(2.7,frame); focus.z += (player.z * .28 - focus.z) * smoothing(2.7,frame); }
     camera.position.set(focus.x, distance * .87, focus.z + distance * .71); camera.lookAt(focus.x, 0, focus.z);
     for (const u of s.units) {
-      active.add(u.id); let v = visuals.get(u.id);
+      let v = visuals.get(u.id);
       if (v && (v.kind !== u.kind || v.hero !== u.hero || (!v.wasAlive && u.alive))) { v.model?.dispose(); scene.remove(v.root); visuals.delete(u.id); v = undefined; }
       if (!v) { v = makeUnit(u); visuals.set(u.id, v); }
       v.root.visible = u.alive;
@@ -350,20 +312,23 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
         v.speed = 0;
       }
       const {dx,dz,moving,displaced}=v.locomotion.sample(u.x,u.z,s.time);
-      const target = u.target === null ? undefined : s.units.find(other => other.id === u.target && other.alive);
+      const candidate = u.target === null ? undefined : unitsById.get(u.target);
+      const target = candidate?.alive ? candidate : undefined;
       const action=u.visualAction;
       const newAction=action&&action.sequence!==v.actionSequence&&s.time-action.time<.3;
+      const releasing=action?.ability!==undefined&&isProjectileCast(u.hero,action.ability)
+        &&s.time-action.time<=PROJECTILE_RULES.windupTicks*.05+1e-8;
       if(newAction){
         const dx = action.x - u.x, dz = action.z - u.z;
         if (Math.hypot(dx, dz) > .001) v.facing = Math.atan2(dx,dz);
-        v.model?.play(action.kind);
+        v.model?.play(action.kind,action.ability);
         if (action.kind === 'attack') v.minion?.attack();
       }
       v.actionSequence=action?.sequence;
-      if (!newAction&&displaced) v.facing = Math.atan2(dx, dz);
-      else if (!newAction&&!moving&&target) v.facing = Math.atan2(target.x - u.x, target.z - u.z);
+      if (!releasing&&!newAction&&displaced) v.facing = Math.atan2(dx, dz);
+      else if (!releasing&&!newAction&&!moving&&target) v.facing = Math.atan2(target.x - u.x, target.z - u.z);
       const rotationDelta = Math.atan2(Math.sin(v.facing - v.body.rotation.y), Math.cos(v.facing - v.body.rotation.y));
-      v.body.rotation.y += rotationDelta * smoothing(13,frame);
+      v.body.rotation.y += rotationDelta * smoothing(releasing?27:13,frame);
       const positionBlend = smoothing(20,frame);
       const renderDx = (u.x - v.root.position.x) * positionBlend;
       const renderDz = (u.z - v.root.position.z) * positionBlend;
@@ -375,13 +340,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       else if (v.minion) {
         v.minion.root.position.y = Math.hypot(v.root.position.x, v.root.position.z) < 5.3 ? .088 : 0;
         v.minion.update(v.speed,frame);
-      } else if (u.kind === 'hero' || u.kind === 'dummy') {
-        v.stride += Math.min(v.speed, 8) * frame * 2.2;
-        const strideWeight = Math.min(v.speed / 2, 1);
-        const step = Math.sin(v.stride + u.id);
-        v.body.position.y = Math.abs(step) * .09 * strideWeight + Math.sin(elapsed * 2 + u.id) * .025 * (1 - strideWeight);
-        v.body.rotation.z = step * .035 * strideWeight;
-        if (v.weapon) v.weapon.rotation.x = target && u.attackCooldown > .25 ? Math.sin(elapsed * 13) * .25 : Math.sin(elapsed * 2) * .025;
       }
       if (v.glow) { v.glow.rotation.y += frame * .8; v.glow.position.y += Math.sin(elapsed * 2 + u.id) * frame * .08; }
       v.bar.quaternion.copy(camera.quaternion);
@@ -390,15 +348,16 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       v.health.scale.x = width * hp; v.health.position.x = -width * (1 - hp) / 2;
       if (v.mana) { const mana = Math.max(0, Math.min(1, u.mana / u.maxMana)); v.mana.scale.x = width * mana; v.mana.position.x = -width * (1 - mana) / 2; }
     }
-    for (const [id, v] of visuals) if (!active.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
+    for (const [id, v] of visuals) if (!unitsById.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
     destination.visible = !!player?.alive && !!player.dest;
     selection.visible = !!player?.alive;
     if (player) { const position = visuals.get(player.id)?.root.position ?? player; selection.position.set(position.x, 0, position.z); selection.scale.setScalar(1 + Math.sin(elapsed * 3) * .025); }
     if (player?.dest) { destination.position.set(player.dest.x, 0, player.dest.z); destination.rotation.y = elapsed * .6; destination.scale.setScalar(1 + Math.sin(elapsed * 6) * .07); }
+    abilityAim.update(s,player,aim);
+    projectileView.update(s.projectiles,s.tick,frame,s.effects,projectileRelease);
     combatFx.update(s.effects,frame);
     camera.updateMatrixWorld();
     damageNumbers.update(s.damageEvents,s.time,frame,camera,container.clientWidth,container.clientHeight);
-    projectileView.update(s.projectiles,s.tick,frame);
     renderer.render(scene, camera);
   }
   return {
@@ -416,6 +375,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); combatFx.dispose(); damageNumbers.dispose(); laneMinions.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { disposed = true; tower?.dispose(); abilityAim.dispose(); projectileView.dispose(); combatFx.dispose(); damageNumbers.dispose(); laneMinions.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }

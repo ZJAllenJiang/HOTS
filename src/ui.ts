@@ -26,7 +26,66 @@ export function mountUI(root:HTMLElement,callbacks:Callbacks){
  function returnLobby(){if(last&&!last.paused&&last.winner===null)callbacks.pause();lobby=true;activeModal=null;root.classList.add('is-lobby');el<HTMLButtonElement>('#start').focus();}
  root.addEventListener('keydown',(e)=>{if(e.key!=='Tab'||!activeModal||lobby)return;const focusable=Array.from(activeModal.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],[tabindex="0"]'));const first=focusable[0],last=focusable[focusable.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}},{signal:listenerAbort.signal});
  on('.brand',()=>{if(!lobby)returnLobby()});el('.brand').addEventListener('click',e=>e.preventDefault());root.querySelectorAll<HTMLButtonElement>('[data-hero]').forEach(b=>b.addEventListener('click',()=>chooseHero(b.dataset.hero as Hero)));root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(b=>b.addEventListener('click',()=>chooseMode(b.dataset.mode as Mode)));on('#start',enter);on('#pause',callbacks.pause);on('#resume',callbacks.pause);on('#return',returnLobby);on('#end-lobby',returnLobby);on('#restart',callbacks.reset);on('#again',callbacks.reset);root.querySelectorAll<HTMLButtonElement>('[data-skill]').forEach(b=>b.addEventListener('click',()=>callbacks.cast(b.dataset.skill as Key)));root.querySelectorAll<HTMLButtonElement>('[data-talent]').forEach(b=>b.addEventListener('click',()=>callbacks.talent(Number(b.dataset.talent))));
- function update(s:State){last=s;if(lobby)return;const p=s.units.find(u=>u.id===s.playerId);if(!p)return;const level=s.teams[0].level;setText('#blue-kills',String(s.teams[0].kills));setText('#red-kills',String(s.teams[1].kills));setText('#time',`${Math.floor(s.time/60).toString().padStart(2,'0')}:${Math.floor(s.time%60).toString().padStart(2,'0')}`);setText('#match-status',s.mode==='training'?'英雄训练场':s.paused?'战场已暂停':'战斗进行中');if(el('#pause').dataset.paused!==String(s.paused)){el('#pause').innerHTML=s.paused?'▷ <span>继续</span>':'Ⅱ <span>暂停</span>';el('#pause').dataset.paused=String(s.paused)}setText('#level',String(level));setText('#kda',`${p.kills} / ${p.deaths}`);el('#health-fill').style.width=`${Math.max(0,p.hp/p.maxHp*100)}%`;el('#mana-fill').style.width=`${Math.max(0,p.mana/p.maxMana*100)}%`;setText('#health-value',`${Math.ceil(Math.max(0,p.hp))} / ${p.maxHp}`);setText('#mana-value',`${Math.floor(p.mana)} / ${p.maxMana}`);setText('#xp-label',`团队等级 ${level} · 共享经验`);el('#xp-fill').style.width=`${(s.teams[0].xp%1000)/1000*100}%`;keys.forEach(k=>{const b=el<HTMLButtonElement>(`[data-skill="${k}"]`);const cd=p.cooldowns[k];const locked=k==='r'&&level<3;const lowMana=p.mana<ABILITIES[p.hero][k].cost;b.classList.toggle('on-cooldown',cd>0||locked||lowMana);b.classList.toggle('is-locked',locked);b.disabled=cd>0||locked||lowMana||!p.alive||s.paused;b.querySelector('.cooldown')!.textContent=locked?'Lv.3':cd>0?Math.ceil(cd).toString():lowMana?'法力不足':'';});el('#talents').hidden=level<2||s.talent!==null||s.winner!==null||s.paused;el('#pause-modal').hidden=!s.paused||s.winner!==null;el('#end-modal').hidden=s.winner===null;const nextModal=s.winner!==null?el('#end-modal'):s.paused?el('#pause-modal'):null;if(nextModal!==activeModal){if(nextModal){previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;nextModal.querySelector<HTMLButtonElement>('button')?.focus()}else previousFocus?.focus();activeModal=nextModal;}el('#respawn').hidden=p.alive||s.winner!==null;if(!p.alive)el('#respawn strong').textContent=`${Math.ceil(p.respawn)} 秒`;if(s.winner!==null){setText('#end-eyebrow',s.winner===0?'VICTORY':'DEFEAT');setText('#end-title',s.winner===0?'胜利属于你':'下一战，再出发');setText('#end-description',s.winner===0?'敌方核心已被摧毁。精彩的团队配合！':'我方核心已被摧毁。重整旗鼓，回到战线。');setText('#end-stats',`${s.teams[0].kills} : ${s.teams[1].kills}　 ·　 ${Math.floor(s.time/60)} 分 ${Math.floor(s.time%60)} 秒`);}}
+ let rendered:State|undefined, renderedTick=-1, renderedPaused=false, renderedAim:Key|null=null;
+ function update(s:State,armed:Key|null=null){
+   last=s;
+   if(lobby){rendered=undefined;return;}
+   if(rendered===s&&renderedTick===s.tick&&renderedPaused===s.paused&&renderedAim===armed)return;
+   rendered=s;renderedTick=s.tick;renderedPaused=s.paused;renderedAim=armed;
+   const player=s.units.find(unit=>unit.id===s.playerId);
+   if(!player)return;
+   const level=s.teams[0].level;
+   const minutes=Math.floor(s.time/60),seconds=Math.floor(s.time%60);
+   setText('#blue-kills',String(s.teams[0].kills));
+   setText('#red-kills',String(s.teams[1].kills));
+   setText('#time',`${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`);
+   setText('#match-status',s.mode==='training'?'英雄训练场':s.paused?'战场已暂停':'战斗进行中');
+   const pause=el('#pause');
+   if(pause.dataset.paused!==String(s.paused)){
+     pause.innerHTML=s.paused?'▷ <span>继续</span>':'Ⅱ <span>暂停</span>';
+     pause.dataset.paused=String(s.paused);
+   }
+   setText('#level',String(level));
+   setText('#kda',`${player.kills} / ${player.deaths}`);
+   el('#health-fill').style.width=`${Math.max(0,player.hp/player.maxHp*100)}%`;
+   el('#mana-fill').style.width=`${Math.max(0,player.mana/player.maxMana*100)}%`;
+   setText('#health-value',`${Math.ceil(Math.max(0,player.hp))} / ${player.maxHp}`);
+   setText('#mana-value',`${Math.floor(player.mana)} / ${player.maxMana}`);
+   setText('#xp-label',`团队等级 ${level} · 共享经验`);
+   el('#xp-fill').style.width=`${(s.teams[0].xp%1000)/1000*100}%`;
+   for(const key of keys){
+     const button=el<HTMLButtonElement>(`[data-skill="${key}"]`);
+     const cooldown=player.cooldowns[key];
+     const locked=key==='r'&&level<3;
+     const lowMana=player.mana<ABILITIES[player.hero][key].cost;
+     const unavailable=cooldown>0||locked||lowMana;
+     button.disabled=unavailable||!player.alive||s.paused||s.winner!==null;
+     button.classList.toggle('on-cooldown',unavailable);
+     button.classList.toggle('is-locked',locked);
+     button.setAttribute('aria-pressed',String(key===armed&&!button.disabled));
+     setText(`[data-skill="${key}"] .cooldown`,locked?'Lv.3':cooldown>0?String(Math.ceil(cooldown)):lowMana?'法力不足':'');
+   }
+   el('#talents').hidden=level<2||s.talent!==null||s.winner!==null||s.paused;
+   const pauseModal=el('#pause-modal'),endModal=el('#end-modal');
+   pauseModal.hidden=!s.paused||s.winner!==null;
+   endModal.hidden=s.winner===null;
+   const nextModal=s.winner!==null?endModal:s.paused?pauseModal:null;
+   if(nextModal!==activeModal){
+     if(nextModal){
+       previousFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;
+       nextModal.querySelector<HTMLButtonElement>('button')?.focus();
+     }else previousFocus?.focus();
+     activeModal=nextModal;
+   }
+   el('#respawn').hidden=player.alive||s.winner!==null;
+   if(!player.alive)setText('#respawn strong',`${Math.ceil(player.respawn)} 秒`);
+   if(s.winner!==null){
+     setText('#end-eyebrow',s.winner===0?'VICTORY':'DEFEAT');
+     setText('#end-title',s.winner===0?'胜利属于你':'下一战，再出发');
+     setText('#end-description',s.winner===0?'敌方核心已被摧毁。精彩的团队配合！':'我方核心已被摧毁。重整旗鼓，回到战线。');
+     setText('#end-stats',`${s.teams[0].kills} : ${s.teams[1].kills}　 ·　 ${minutes} 分 ${seconds} 秒`);
+   }
+ }
  chooseHero(selected);
  const liveHero=el('#live-hero');
  return {update,showcase:liveHero,get selectedHero(){return selected;},destroy(){listenerAbort.abort();root.innerHTML='';root.classList.remove('is-lobby')}};

@@ -64,3 +64,11 @@ The 3D renderer separates projectile travel, impact, and area effects for the th
 Lane troops use shared meshes for original armored stone sentries, with team-colored armor and shields. Each sentry animates its own gait and attack. The frost slot now uses the original Prism Warden for both lobby and combat, and the offline export includes the new art without a separate character download.
 
 Automated checks cover the damage event stream, effect lifecycle and minion poses. Cloud Chrome loaded the lobby and reported WebGL 2 unavailable. Live combat appearance and Mac/Windows frame timing still need hardware validation.
+
+## Hero silhouettes, targeting, and scene batching
+
+The ranger uses a recurve bow with an animated draw and release. The guardian uses a large shield and a hammer with a braced follow-through. The frost caster raises a staff and channels from its crystal. The three original models use the same poses in the lobby and arena.
+
+Ranged Q windups follow the animated weapon. The missile joins the simulation path after launch, and its final trail reaches the authoritative contact on the same frame as the hit effect and damage text. Selecting a skill button previews cast range and its projectile corridor or area using the combat rules. Keyboard quick cast remains available.
+
+Static arena profiling counted 181 meshes and 176 shadow casters before batching, and 93 meshes and 88 shadow casters after batching, before frustum culling. Both paths produce 5,368 triangles. Unit lookups reuse a per-frame ID index, and the combat HUD refreshes on simulation ticks or input-state changes. These counts measure scene submissions, not frame rate. Cloud Chrome verified hero selection with WebGL 2 unavailable. Desktop combat appearance and frame timing remain open.
