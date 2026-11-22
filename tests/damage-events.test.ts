@@ -8,12 +8,15 @@ it('reports the actual HP lost after scaling and caps an overkill at remaining H
   state.teams[0].level=2;
   command(state,{type:'talent',index:0});
   command(state,{type:'cast',key:'w',x,z});
+  expect(state.damageEvents).toHaveLength(0);
+  step(state,.35);
   expect(state.damageEvents).toHaveLength(1);
   expect(state.damageEvents[0]).toMatchObject({x,z,amount:expect.closeTo(224.64),ability:'w',incoming:false});
   expect(dummy.hp).toBeCloseTo(dummy.maxHp-224.64);
   player.cooldowns.w=0;
   dummy.hp=7;
   command(state,{type:'cast',key:'w',x,z});
+  step(state,.35);
   expect(state.damageEvents[1]).toMatchObject({amount:7,ability:'w'});
   step(state,.9);
   expect(state.damageEvents).toHaveLength(0);

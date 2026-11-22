@@ -157,42 +157,64 @@ function impact(root: THREE.Group, geo: Geometries, mats: Materials, effect: Eff
   };
 }
 
+function telegraph(root: THREE.Group, geo: Geometries, mats: Materials, radius: number): Animate {
+  // The fixed edge is the actual hit area; only the inner countdown moves.
+  const edge = ground(root, geo.thinRing, mats.team, radius, .062);
+  edge.name = 'area-edge';
+  ground(root, geo.disc, mats.shadow, radius, .01);
+  const countdown = ground(root, geo.hexRing, mats.color, radius * .92, .05, Math.PI / 6);
+  countdown.name = 'warning-countdown';
+  ground(root, geo.frostMark, mats.highlight, radius * .22, .038);
+  return progress => {
+    mats.team.opacity = .54;
+    mats.shadow.opacity = .13;
+    mats.color.opacity = .38 + progress * .15;
+    mats.highlight.opacity = .35;
+    countdown.scale.setScalar(radius * (.92 - .6 * progress));
+  };
+}
+
 function area(root: THREE.Group, geo: Geometries, mats: Materials, hero: Hero, radius: number, ultimate: boolean): Animate {
-  ground(root, geo.thinRing, mats.team, radius, .062);
+  const frostBurst = hero === 'frost' && !ultimate;
+  const edge = ground(root, geo.broadRing, mats.team, radius, .062);
+  edge.name = 'area-edge';
   ground(root, geo.disc, mats.shadow, radius, .01);
   const accentGeometry = hero === 'ranger' ? geo.wind : geo.hexRing;
   const accent = ground(root, accentGeometry, mats.color, radius * .82, .05, Math.PI / 6);
   const runeGeometry = hero === 'frost' ? geo.frostMark : hero === 'guardian' ? geo.shield : geo.rangerMark;
   const rune = ground(root, runeGeometry, mats.color, radius * .37, .038);
   const shock = ground(root, geo.broadRing, mats.highlight, radius * .45, .03);
+  shock.name = 'area-shock';
   let centerpiece: THREE.Mesh | undefined;
   if (ultimate) {
     centerpiece = hero === 'ranger'
       ? ground(root, geo.rangerNova, mats.highlight, 1.5, 1.9)
       : mesh(root, hero === 'guardian' ? geo.pillar : geo.crystal, mats.highlight);
   }
-  const count = ultimate ? 10 : 7;
+  const count = ultimate ? 10 : frostBurst ? 6 : 7;
   const pieces = Array.from({ length: count }, (_, index) => {
     const angle = index * TAU / count + .3;
     const geometry = hero === 'frost' ? geo.crystal : hero === 'guardian' ? geo.pillar : geo.arrow;
     const piece = mesh(root, geometry, mats.highlight);
-    const mark = ground(root, hero === 'ranger' ? geo.arrow : runeGeometry, mats.color, ultimate ? .53 : .42, .04, angle + Math.PI);
+    piece.name = `${hero}-impact-piece`;
+    const mark = ground(root, hero === 'ranger' ? geo.arrow : runeGeometry, mats.color, frostBurst ? .68 : ultimate ? .63 : .55, .04, angle + Math.PI);
     const distance = radius * (ultimate ? .76 : .69) * (index % 3 === 0 ? .68 : 1);
     mark.position.x = Math.sin(angle) * distance;
     mark.position.z = -Math.cos(angle) * distance;
-    return { piece, mark, angle, distance, delay: index % 3 * .085 };
+    return { piece, mark, angle, distance, delay: frostBurst ? 0 : index % 3 * .06 };
   });
 
   return progress => {
     const fade = fadeAfter(progress, ultimate ? .45 : .28);
     const expansion = easeOut(progress * (ultimate ? 1.75 : 2.35));
-    mats.team.opacity = .94 * fade;
-    mats.color.opacity = .86 * fade;
-    mats.shadow.opacity = (ultimate ? .27 : .19) * fade;
-    mats.highlight.opacity = .92 * fadeAfter(progress, .2);
+    mats.team.opacity = .98 * fade;
+    mats.color.opacity = .94 * fade;
+    mats.shadow.opacity = (frostBurst ? .52 : .34) * fade;
+    mats.highlight.opacity = fadeAfter(progress, frostBurst ? .3 : .24);
     accent.rotation.z = Math.PI / 6 + (hero === 'ranger' ? progress * 1.65 : progress * .23);
-    shock.scale.setScalar(radius * (.27 + .68 * expansion));
-    rune.scale.setScalar(radius * ((ultimate ? .53 : .38) + expansion * .06));
+    // Start at arena-readable size on the first frame, then push out to the edge.
+    shock.scale.setScalar(radius * (.6 + .36 * easeOut(progress * (frostBurst ? 4 : 2.4))));
+    rune.scale.setScalar(radius * ((frostBurst ? .76 : ultimate ? .57 : .48) + expansion * .06));
     if (centerpiece) {
       const crest = fadeAfter(progress, .05);
       if (hero === 'ranger') {
@@ -214,18 +236,25 @@ function area(root: THREE.Group, geo: Geometries, mats: Materials, hero: Hero, r
       const size = fadeAfter(local, .37);
       if (hero === 'frost') {
         const reach = ultimate ? distance * (.27 + .73 * easeOut(local * 1.7)) : distance;
-        piece.position.set(Math.sin(angle) * reach, .4 + 1.65 * Math.pow(1 - local, 2), -Math.cos(angle) * reach);
-        piece.rotation.set(.14, angle, .25 + .58 * local);
-        piece.scale.set(.2 * size, (ultimate ? .89 : .7) * size, .23 * size);
+        if (frostBurst) {
+          const crest = (1 + .25 * Math.sin(Math.PI * unitProgress(local * 3))) * size;
+          piece.position.set(Math.sin(angle) * reach, .18 + .96 * crest, -Math.cos(angle) * reach);
+          piece.rotation.set(Math.sin(angle) * .2, angle, Math.cos(angle) * .2);
+          piece.scale.set(.42 * size, 1.2 * crest, .34 * size);
+        } else {
+          piece.position.set(Math.sin(angle) * reach, .4 + 1.65 * Math.pow(1 - local, 2), -Math.cos(angle) * reach);
+          piece.rotation.set(.14, angle, .25 + .58 * local);
+          piece.scale.set(.3 * size, 1.1 * size, .32 * size);
+        }
       } else if (hero === 'ranger') {
         piece.position.set(mark.position.x - .92 * (1 - local), .45 + 2.5 * Math.pow(1 - local, 3), mark.position.z + .45 * (1 - local));
         piece.rotation.set(-.18, -.68, Math.PI + .5);
-        piece.scale.set(.39 * size, .66 * size, .45);
+        piece.scale.set(.52 * size, .88 * size, .45);
       } else {
-        const lift = easeOut(local * 4) * fadeAfter(local, .35);
+        const lift = (.72 + .28 * easeOut(local * 4)) * fadeAfter(local, .35);
         piece.position.set(mark.position.x, .14 + .34 * lift, mark.position.z);
         piece.rotation.y = angle;
-        piece.scale.set(.29 * size, (.18 + (ultimate ? 1.44 : .77) * lift) * size, .29 * size);
+        piece.scale.set(.42 * size, (.35 + (ultimate ? 1.6 : 1.05) * lift) * size, .42 * size);
       }
     }
   };
@@ -282,13 +311,18 @@ export class CombatFx {
 
   constructor(private scene: THREE.Scene) {}
 
-  update(effects: readonly Effect[], dt: number): void {
+  update(effects: readonly Effect[], dt: number, playerId?: number): void {
     this.active.clear();
-    // Reserve most of the budget for abilities during larger waves.
+    // Keep player spell feedback and ground warnings visible in crowded fights.
+    for (let index = effects.length - 1; index >= 0 && this.active.size < LIMIT; index--) {
+      const effect = effects[index];
+      const playerAbility = playerId !== undefined && playerId === effect.sourceId && effect.ability !== undefined;
+      if (effect.life > 0 && (playerAbility || effect.kind === 'telegraph')) this.active.add(effect);
+    }
     let attacks = 0;
     for (let index = effects.length - 1; index >= 0 && this.active.size < LIMIT; index--) {
       const effect = effects[index];
-      if (effect.life <= 0 || (effect.kind === 'attack' && attacks++ >= BASIC_ATTACK_LIMIT)) continue;
+      if (effect.life <= 0 || this.active.has(effect) || (effect.kind === 'attack' && attacks++ >= BASIC_ATTACK_LIMIT)) continue;
       this.active.add(effect);
     }
     for (const [effect, view] of this.views) {
@@ -314,8 +348,11 @@ export class CombatFx {
     const mats = createMaterials(hero, effect.team);
     const radius = Math.max(.3, effect.radius);
     const ability = effect.ability ?? LEGACY_ABILITIES[effect.kind];
+    root.name = `${hero}-${ability ?? 'attack'}-${effect.kind}`;
     let animate: Animate;
-    switch (ability) {
+    if (effect.kind === 'telegraph') {
+      animate = telegraph(root, this.geometries, mats, radius);
+    } else switch (ability) {
       case 'q': animate = impact(root, this.geometries, mats, effect, hero, radius); break;
       case 'e': animate = utility(root, this.geometries, mats, effect, hero, radius); break;
       case 'w':
