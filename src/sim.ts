@@ -100,7 +100,7 @@ function cast(s:State,u:Unit,key:Key,x:number,z:number):boolean {
   if(key==='e'){
     if(u.hero==='guardian'){
       for(const ally of s.units)if(ally.alive&&ally.team===u.team&&ally.kind==='hero'&&distance(ally,{x,z})<6)ally.hp=Math.min(ally.maxHp,ally.hp+240);
-    }else{u.x=x;u.z=z;u.dest=null;if(u.hero==='frost')u.hp=Math.min(u.maxHp,u.hp+100);}
+    }else{u.x=x;u.z=z;u.positionEpoch=(u.positionEpoch??0)+1;u.dest=null;if(u.hero==='frost')u.hp=Math.min(u.maxHp,u.hp+100);}
     s.effects.push({x,z,radius:2,life:.4,team:u.team,kind:'heal'});return true;
   }
   const amount=key==='q'?160:key==='w'?(u.hero==='ranger'?140:u.hero==='frost'?180:150):(u.hero==='ranger'?360:u.hero==='frost'?420:320);
@@ -190,7 +190,7 @@ function tick(s:State){
     if(!u.alive){
       if(u.kind==='hero'||u.kind==='dummy'){
         u.respawn=Math.max(0,u.respawn-FIXED_DT);
-        if(u.respawn<=1e-8){u.alive=true;u.hp=u.maxHp;u.mana=u.maxMana;u.cooldowns=zeros();u.attackCooldown=0;if(u.kind==='hero'){u.x=u.team===0?-24:24;u.z=u.id===s.playerId?0:((u.id%5)-2)*2;}}
+        if(u.respawn<=1e-8){u.alive=true;u.hp=u.maxHp;u.mana=u.maxMana;u.cooldowns=zeros();u.attackCooldown=0;if(u.kind==='hero'){u.positionEpoch=(u.positionEpoch??0)+1;u.x=u.team===0?-24:24;u.z=u.id===s.playerId?0:((u.id%5)-2)*2;}}
       }continue;
     }
     for(const key of keys)u.cooldowns[key]=u.cooldowns[key]<=FIXED_DT+1e-8?0:u.cooldowns[key]-FIXED_DT;

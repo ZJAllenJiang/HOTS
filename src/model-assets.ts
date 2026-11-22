@@ -8,7 +8,7 @@ import manifest from './model-manifest.json';
 
 export type {Motion} from './model-animation';
 interface Template {gltf:GLTF;clips:Partial<Record<Motion,THREE.AnimationClip>>;height:number}
-export interface ModelInstance {root:THREE.Group;update(motion:'idle'|'run',dt:number):void;play(motion:'attack'|'cast'):void;dispose():void}
+export interface ModelInstance {root:THREE.Group;update(motion:'idle'|'run',dt:number,rate?:number):void;play(motion:'attack'|'cast'):void;dispose():void}
 export class HeroModels {
   private templates=new Map<Hero,Template>();
   private generations=new Map<Hero,number>();
@@ -64,7 +64,7 @@ export class HeroModels {
     // Preserve the authored X/Z pivot: a staff or cape must not shift the actor's center.
     scene.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
     const animation=new ModelAnimation(scene,t.clips);
-    return {root,update(motion,dt){animation.update(motion,dt);},play(motion){animation.play(motion);},
+    return {root,update(motion,dt,rate){animation.update(motion,dt,rate);},play(motion){animation.play(motion);},
       dispose(){animation.dispose();scene.traverse(o=>{if(o instanceof THREE.SkinnedMesh)o.skeleton.dispose();});root.removeFromParent();}};
   }
   dispose(){this.dead=true;this.templates.forEach(t=>disposeGLTF(t.gltf));this.templates.clear();}

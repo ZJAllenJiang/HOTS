@@ -11,3 +11,31 @@
 @media(max-width:800px){.desktop-settings{right:12px;bottom:8px}.desktop-settings>summary{padding:5px 10px;font-size:11px}}
 
 .model-load-error{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:150;background:#392a19;color:#ffe4b0;padding:10px 16px;border:1px solid #a57b40;border-radius:6px;font:13px system-ui;pointer-events:none}
+
+/* The live portrait shares the match canvas; image portraits stay as load fallbacks. */
+#live-hero {
+  position: absolute;
+  inset: 0 5% 8%;
+  visibility: hidden;
+  pointer-events: none;
+}
+.has-live-hero #live-hero { visibility: visible; }
+.has-live-hero #large-portrait { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .lobby *, .lobby *::before, .lobby *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+#lobby-graphics-notice {
+  max-width: 350px;
+  margin: 12px 0 0;
+  color: #d4b4a0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.primary-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
