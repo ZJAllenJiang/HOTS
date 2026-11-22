@@ -12,7 +12,7 @@ import {QUALITY,type Quality} from './settings';
 import {HeroModels,type ModelInstance} from './model-assets';
 import type {CastAim, Projectile, Renderer, State, Unit, Hero} from './contracts';
 import {PROJECTILE_RULES} from './projectiles';
-import {isProjectileCast} from './sim';
+import {FROST_AREA_RULES,isProjectileCast} from './sim';
 
 // Original, procedural arena art. All geometry is local to this prototype.
 export function createRenderer(container: HTMLElement,quality:Quality='balanced'): Renderer {
@@ -141,7 +141,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   geometries.push(...batchStaticArena(scene, arenaMeshes));
   arenaMeshes.length = 0;
 
-  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; minion?:ReturnType<ReturnType<typeof createLaneMinionArt>['instantiate']>; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
+  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; minion?:ReturnType<ReturnType<typeof createLaneMinionArt>['instantiate']>; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; hit:THREE.Mesh; slow?:THREE.Mesh; mana?: THREE.Mesh; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   let tower: Awaited<ReturnType<typeof loadArenaTower>> | undefined;
   let disposed = false;
@@ -158,6 +158,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   const hpAlly = new THREE.MeshBasicMaterial({ color: 0x6ceac3, depthTest: false });
   const hpEnemy = new THREE.MeshBasicMaterial({ color: 0xff748a, depthTest: false });
   const manaMaterial = new THREE.MeshBasicMaterial({ color: 0x5b9fff, depthTest: false });
+  const hitMaterial = new THREE.MeshBasicMaterial({color:0xfff4db,depthTest:false,depthWrite:false,toneMapped:false});
+  const slowGeometry = geo(new THREE.RingGeometry(.88,1.04,6));
+  const slowMaterial = new THREE.MeshBasicMaterial({color:0xb8f1ff,transparent:true,opacity:.84,depthWrite:false,toneMapped:false});
   const showcase = new HeroShowcase();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const models=new HeroModels(hero=>{
@@ -169,9 +172,12 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     const bar = new THREE.Group(); bar.position.y = y; root.add(bar); bar.renderOrder = 30;
     const bg = mesh(bar, plane, hpBg, 0, 0, 0, width + .09, .18, 1); bg.castShadow = false; bg.renderOrder = 30;
     const health = mesh(bar, plane, u.team === 0 ? hpAlly : hpEnemy, 0, 0, .01, width, .085, 1); health.castShadow = false; health.renderOrder = 31;
+    const hit = mesh(bar,plane,hitMaterial,0,.085,.02,width,.04,1);
+    hit.castShadow = hit.receiveShadow = hit.visible = false;
+    hit.renderOrder = 32;
     let mana: THREE.Mesh | undefined;
     if (u.kind === 'hero') { mana = mesh(bar, plane, manaMaterial, 0, -.095, .01, width, .035, 1); mana.castShadow = false; mana.renderOrder = 31; }
-    return { bar, health, mana };
+    return { bar, health, hit, mana };
   }
   function makeUnit(u: Unit): Visual {
     const root = new THREE.Group(); root.position.set(u.x, 0, u.z); scene.add(root);
@@ -224,7 +230,14 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     }
     body.rotation.y=u.team===0?Math.PI/2:-Math.PI/2;
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, minion, root, body, ...bars, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    let slow:THREE.Mesh|undefined;
+    if(u.kind==='hero'||u.kind==='minion'){
+      const scale=u.kind==='hero'?1.22:.66;
+      slow=mesh(root,slowGeometry,slowMaterial,0,.16,0,scale,scale,1);
+      slow.rotation.x=-Math.PI/2;
+      slow.castShadow=slow.receiveShadow=slow.visible=false;
+    }
+    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, minion, root, body, ...bars, slow, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
@@ -246,6 +259,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
   }
   const selection = new THREE.Group(); scene.add(selection); ring(selection, 0xffe3a0, 1.08, .035, .1, 1.1);
   const unitsById = new Map<number, Unit>();
+  const latestHits = new Map<number,number>();
   let elapsed = 0; let lastState:State|undefined;
   let surface = container;
   function resize() {
@@ -295,6 +309,8 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     const frame = Math.min(Math.max(dt, 0), .1); elapsed += frame;
     unitsById.clear();
     for (const u of s.units) unitsById.set(u.id, u);
+    latestHits.clear();
+    for(const hit of s.damageEvents)if(s.time-hit.time<.15)latestHits.set(hit.targetId,hit.time);
     const player = unitsById.get(s.playerId);
     if (player) { focus.x += (player.x * .28 - focus.x) * smoothing(2.7,frame); focus.z += (player.z * .28 - focus.z) * smoothing(2.7,frame); }
     camera.position.set(focus.x, distance * .87, focus.z + distance * .71); camera.lookAt(focus.x, 0, focus.z);
@@ -316,8 +332,10 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       const target = candidate?.alive ? candidate : undefined;
       const action=u.visualAction;
       const newAction=action&&action.sequence!==v.actionSequence&&s.time-action.time<.3;
-      const releasing=action?.ability!==undefined&&isProjectileCast(u.hero,action.ability)
-        &&s.time-action.time<=PROJECTILE_RULES.windupTicks*.05+1e-8;
+      let windup=0;
+      if(action?.ability&&isProjectileCast(u.hero,action.ability))windup=PROJECTILE_RULES.windupTicks*.05;
+      if(action?.ability==='w'&&u.hero==='frost')windup=FROST_AREA_RULES.telegraphSeconds;
+      const releasing=!!action&&windup>0&&s.time-action.time<=windup+1e-8;
       if(newAction){
         const dx = action.x - u.x, dz = action.z - u.z;
         if (Math.hypot(dx, dz) > .001) v.facing = Math.atan2(dx,dz);
@@ -346,6 +364,10 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       const width = u.kind === 'core' ? 3 : u.kind === 'tower' ? 2.45 : u.kind === 'minion' ? .88 : u.hero === 'guardian' ? 1.9 : 1.65;
       const hp = Math.max(0, Math.min(1, u.hp / u.maxHp));
       v.health.scale.x = width * hp; v.health.position.x = -width * (1 - hp) / 2;
+      const hitTime=latestHits.get(u.id);
+      v.hit.visible=hitTime!==undefined;
+      if(hitTime!==undefined)v.hit.scale.x=width*(1-(s.time-hitTime)/.15);
+      if(v.slow)v.slow.visible=u.slowUntilTick!==undefined&&s.tick<=u.slowUntilTick;
       if (v.mana) { const mana = Math.max(0, Math.min(1, u.mana / u.maxMana)); v.mana.scale.x = width * mana; v.mana.position.x = -width * (1 - mana) / 2; }
     }
     for (const [id, v] of visuals) if (!unitsById.has(id)) { v.model?.dispose(); scene.remove(v.root); visuals.delete(id); }
@@ -355,7 +377,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     if (player?.dest) { destination.position.set(player.dest.x, 0, player.dest.z); destination.rotation.y = elapsed * .6; destination.scale.setScalar(1 + Math.sin(elapsed * 6) * .07); }
     abilityAim.update(s,player,aim);
     projectileView.update(s.projectiles,s.tick,frame,s.effects,projectileRelease);
-    combatFx.update(s.effects,frame);
+    combatFx.update(s.effects,frame,s.playerId);
     camera.updateMatrixWorld();
     damageNumbers.update(s.damageEvents,s.time,frame,camera,container.clientWidth,container.clientHeight);
     renderer.render(scene, camera);
@@ -375,6 +397,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { disposed = true; tower?.dispose(); abilityAim.dispose(); projectileView.dispose(); combatFx.dispose(); damageNumbers.dispose(); laneMinions.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { disposed = true; tower?.dispose(); abilityAim.dispose(); projectileView.dispose(); combatFx.dispose(); damageNumbers.dispose(); laneMinions.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, hitMaterial, slowMaterial].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }

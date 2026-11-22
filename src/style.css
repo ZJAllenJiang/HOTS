@@ -98,3 +98,23 @@
   border-color: #87ecff;
   box-shadow: 0 0 14px #63dfff60, inset 0 0 0 1px #87ecff;
 }
+
+.cast-feedback {
+  position: absolute;
+  bottom: calc(100% + 36px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: .4em .8em;
+  color: #d0f6ff;
+  background: #142333ed;
+  border: 1px solid #91d6ef65;
+  border-radius: 4px;
+  font-size: .82rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cast-feedback:empty { visibility: hidden; }
+.cast-feedback.is-rejected { color: #ffcdc1; border-color: #ec8a7c90; }
+#hero-status { color: #a0edff; font-weight: 700; }

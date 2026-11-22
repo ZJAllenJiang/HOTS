@@ -17,7 +17,8 @@ describe('deterministic ARAM prototype simulation',()=>{
   it('validates cast range, cost, cooldown and heroic level gate',()=>{
     const s=createGame('training','ranger'),p=s.units[0],dummy=s.units[1];
     command(s,{type:'cast',key:'q',x:30,z:0});expect(p.mana).toBe(p.maxMana);
-    command(s,{type:'cast',key:'r',x:0,z:0});expect(p.cooldowns.r).toBe(0);
+    const battle=createGame('battle','ranger');
+    command(battle,{type:'cast',key:'r',x:-14,z:0});expect(battle.units[0].cooldowns.r).toBe(0);
     command(s,{type:'cast',key:'q',x:0,z:0});
     expect(p.mana).toBe(p.maxMana-ABILITIES.ranger.q.cost);expect(s.projectiles).toHaveLength(1);
     const mana=p.mana;command(s,{type:'cast',key:'q',x:0,z:0});expect(s.projectiles).toHaveLength(1);expect(p.mana).toBe(mana);

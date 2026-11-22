@@ -1,5 +1,5 @@
 import './style.css';
-import {castTarget,createGame,command,step} from './sim';
+import {castRejection,createGame,command,step} from './sim';
 import {createRenderer} from './render';
 import {mountUI} from './ui';
 import {mountDesktop} from './desktop';
@@ -34,8 +34,29 @@ let pointer:{x:number; y:number}|undefined;
 let pointerOnField=false;
 let armed:Key|null=null;
 const active=()=>graphicsReady&&!root.classList.contains('is-lobby')&&!state.paused&&state.winner===null;
-function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;pointer=undefined;pointerOnField=false;}
-const ui=mountUI(root,{start,pause:()=>{if(graphicsReady){state.paused=!state.paused;armed=null;}},cast:key=>{if(active())armed=armed===key?null:key;},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
+function start(m:Mode,h:Hero){if(!graphicsReady)return;mode=m;hero=h;state=createGame(m,h);state.paused=false;armed=null;pointer=undefined;pointerOnField=false;ui.showCastFeedback();}
+const ui=mountUI(root,{start,pause:()=>{if(graphicsReady){state.paused=!state.paused;armed=null;ui.showCastFeedback();}},cast:key=>{if(active()){armed=armed===key?null:key;ui.showCastFeedback();}},talent:index=>command(state,{type:'talent',index}),reset:()=>start(mode,hero)});
+
+const rejectionText={
+  dead:'重生后才能施法',
+  cooldown:'技能冷却中',
+  mana:'法力不足',
+  locked:'终极技能在团队等级 3 解锁',
+  range:'目标超出技能射程',
+  direction:'请瞄准英雄身外的位置',
+};
+function castAt(key:Key,point:{x:number;z:number}){
+  const player=state.units.find(unit=>unit.id===state.playerId);
+  if(!player)return false;
+  const rejection=castRejection(state,player,key,point.x,point.z);
+  if(rejection){
+    ui.showCastFeedback(`${key.toUpperCase()} · ${rejectionText[rejection]}`,true);
+    return false;
+  }
+  command(state,{type:'cast',key,...point});
+  ui.showCastFeedback(player.hero==='frost'&&key==='w'?'棱晶雨 · 即将落下':undefined);
+  return true;
+}
 try {renderer=createRenderer(game,settings.quality);graphicsReady=true;}
 catch {game.replaceChildren();graphicsFailure('开始对局需要 WebGL 2。');}
 const desktop=mountDesktop(renderer,settings,()=>{state.paused=true;armed=null;});
@@ -48,10 +69,7 @@ game.addEventListener('pointerdown',e=>{
  e.preventDefault();pointer={x:e.clientX,y:e.clientY};pointerOnField=true;
  const aim=renderer.pick(pointer.x,pointer.y);
  if(armed&&e.button===0&&!e.ctrlKey){
-   const player=state.units.find(unit=>unit.id===state.playerId);
-   if(player&&castTarget(state,player,armed,aim.x,aim.z)){
-     command(state,{type:'cast',key:armed,...aim});armed=null;
-   }
+   if(castAt(armed,aim))armed=null;
    return;
  }
  armed=null;
@@ -64,14 +82,15 @@ document.addEventListener('keydown',e=>{
  if(e.metaKey||e.ctrlKey||e.altKey||e.repeat||(e.target as HTMLElement).closest('input,textarea,select,[contenteditable="true"],.desktop-settings'))return;
  const k=e.key.toLowerCase();
  if(k==='escape'&&graphicsReady&&!root.classList.contains('is-lobby')){
-   if(armed)armed=null;
+   if(armed){armed=null;ui.showCastFeedback();}
    else state.paused=!state.paused;
    return;
  }
  if(!active())return;
  if(['q','w','e','r'].includes(k)){
    e.preventDefault();armed=null;
-   if(pointer&&renderer)command(state,{type:'cast',key:k as Key,...renderer.pick(pointer.x,pointer.y)});
+   if(pointer&&pointerOnField&&renderer)castAt(k as Key,renderer.pick(pointer.x,pointer.y));
+   else ui.showCastFeedback('把鼠标移到战场再施法',true);
  }
  if(k==='s'){e.preventDefault();command(state,{type:'stop'});}
 },{signal});
