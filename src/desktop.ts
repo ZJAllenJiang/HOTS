@@ -9,9 +9,9 @@ export function mountDesktop(renderer:Renderer|null,settings:Settings,pause:()=>
     <p>点击敌人攻击。Mac 可用 Control + 单击移动。Q / W / E / R 施法，S 停止，Esc 暂停。切出窗口后自动暂停。</p>
     <details class="model-import"><summary>模型验收 · 导入 GLB</summary>
       <p>替换当前槽位的 3D 模型，仅在本次页面中使用，不会上传。技能仍为原型。</p>
-      <label>角色槽位 <select id="model-hero"><option value="ranger">远程 · Raynor 目标槽位</option><option value="frost">法师 · Jaina 目标槽位</option><option value="guardian">坦克 · Muradin 目标槽位</option></select></label>
+      <label>角色槽位 <select id="model-hero"><option value="ranger">远程 · 影弓游侠</option><option value="frost">法师 · 霜棱术士</option><option value="guardian">坦克 · 破晓卫士</option></select></label>
       <label>模型文件 <input id="model-file" type="file" accept=".glb"></label>
-      <p id="model-status" role="status">需要含贴图、骨骼与动作的 GLB。吉安娜使用社区移植模型，其他槽位仍为占位模型。</p>
+      <p id="model-status" role="status">可导入含骨骼和动作的原创 GLB 来替换角色模型。</p>
     </details><button id="settings-close">完成</button></div>`;
   document.body.append(panel);
   const quality=panel.querySelector<HTMLSelectElement>('#quality')!;quality.value=settings.quality;

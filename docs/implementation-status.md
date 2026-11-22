@@ -56,3 +56,11 @@ The optional offline build contains the arena and Jaina assets in one 5,241,215-
 The lobby opens on Jaina and uses the same WebGL canvas as the match to render a lit, skeletal idle preview. Hero slots without a loaded model use their covers. The lobby remains usable on browsers without WebGL 2 and disables match start with an inline explanation. Reduced-motion preferences keep the portrait at a fixed pose and camera angle.
 
 Walking cadence follows smoothed on-screen speed. Flash and respawn update the rendered position immediately, and selection rings track the displayed model. Automated checks cover first-pose evaluation, gait speed, animation timing and preview replacement. Cloud Chrome verified hero and mode selection with WebGL unavailable. Live 3D visual acceptance and Mac/Windows measurements remain open.
+
+## 2026-11-18 combat presentation
+
+The 3D renderer separates projectile travel, impact, and area effects for the three heroes. Team-colored area rims follow the actual effect radius. Floating combat text shows the player's outgoing and incoming HP loss, with distinct colors for attacks, abilities, and incoming damage. Protected targets produce no damage event, and lethal hits display the HP removed.
+
+Lane troops use shared meshes for original armored stone sentries, with team-colored armor and shields. Each sentry animates its own gait and attack. The frost slot now uses the original Prism Warden for both lobby and combat, and the offline export includes the new art without a separate character download.
+
+Automated checks cover the damage event stream, effect lifecycle and minion poses. Cloud Chrome loaded the lobby and reported WebGL 2 unavailable. Live combat appearance and Mac/Windows frame timing still need hardware validation.

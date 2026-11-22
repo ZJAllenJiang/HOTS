@@ -1,3 +1,6 @@
+import {CombatFx} from './combat-fx';
+import {DamageNumbers} from './damage-numbers';
+import {createLaneMinionArt} from './lane-minion-art';
 import {HeroShowcase} from './hero-showcase';
 import {loadArenaTower} from './arena-tower';
 import {ProjectileView} from './projectile-view';
@@ -5,7 +8,7 @@ import {Locomotion,gaitRate,smoothing} from './locomotion';
 import * as THREE from 'three';
 import {QUALITY,type Quality} from './settings';
 import {HeroModels,type ModelInstance} from './model-assets';
-import type { Renderer, State, Unit, Effect, Hero } from './contracts';
+import type { Renderer, State, Unit, Hero } from './contracts';
 
 // Original, procedural arena art. All geometry is local to this prototype.
 export function createRenderer(container: HTMLElement,quality:Quality='balanced'): Renderer {
@@ -134,7 +137,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     }
   }
 
-  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; stride:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
+  interface Visual { positionEpoch?:number; wasAlive:boolean; speed:number; stride:number; locomotion:Locomotion; actionSequence?:number; model?:ModelInstance; minion?:ReturnType<ReturnType<typeof createLaneMinionArt>['instantiate']>; root: THREE.Group; body: THREE.Group; bar: THREE.Group; health: THREE.Mesh; mana?: THREE.Mesh; weapon?: THREE.Group; glow?: THREE.Object3D; facing: number; kind: string; hero: Hero; }
   const visuals = new Map<number, Visual>();
   let tower: Awaited<ReturnType<typeof loadArenaTower>> | undefined;
   let disposed = false;
@@ -157,7 +160,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     showcase.invalidate(hero);
     for(const [id,v] of visuals)if(v.hero===hero&&(v.kind==='hero'||v.kind==='dummy')){v.model?.dispose();scene.remove(v.root);visuals.delete(id);}
   });
-  void models.loadDefaults();
+  const laneMinions=createLaneMinionArt();
   function healthbar(u: Unit, root: THREE.Group, y: number, width: number) {
     const bar = new THREE.Group(); bar.position.y = y; root.add(bar); bar.renderOrder = 30;
     const bg = mesh(bar, plane, hpBg, 0, 0, 0, width + .09, .18, 1); bg.castShadow = false; bg.renderOrder = 30;
@@ -172,6 +175,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     const tc = u.team === 0 ? colors.blue : colors.purple;
     const armor = u.team === 0 ? 0x41768f : 0x80608a;
     const trim = mat(0xe4c389, .7, .35);
+    let minion: Visual['minion'];
     let weapon: THREE.Group | undefined, glow: THREE.Object3D | undefined;
     let barHeight = 2.8, barWidth = 1.65;
     if (u.kind === 'hero' || u.kind === 'dummy') {
@@ -235,14 +239,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
         barHeight = 2.95; barWidth = 1.9;
       }
     } else if (u.kind === 'minion') {
-      for (const s of [-1, 1]) box(body, 0x253b4e, s * .15, .25, 0, .19, .42, .23);
-      orb(body, armor, 0, .65, 0, .35, .43, .29);
-      orb(body, 0xa8aaa1, 0, 1.08, .03, .25, .25, .23);
-      box(body, 0x21333f, 0, 1.08, .23, .3, .065, .03);
-      box(body, tc, 0, .76, .27, .17, .27, .05);
-      box(body, 0xacb3a7, .39, .72, .21, .09, .8, .1).rotation.z = -.25;
-      box(body, armor, -.33, .7, .2, .16, .48, .36);
-      ring(root, tc, .42, .035, .05, .3); barHeight = 1.65; barWidth = .88;
+      minion=laneMinions.instantiate(u.team,u.id);
+      body.add(minion.root);
+      barHeight = 1.8; barWidth = .88;
     } else if (u.kind === 'tower') {
       if (tower) {
         const asset = tower.instantiate(u.team);
@@ -276,18 +275,16 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     if(model){body.clear();body.add(model.root);weapon=undefined;glow=undefined;}
     body.rotation.y=u.team===0?Math.PI/2:-Math.PI/2;
     const bars = healthbar(u, root, barHeight, barWidth);
-    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, stride:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
+    return { positionEpoch:u.positionEpoch, wasAlive:u.alive, speed:0, stride:0, locomotion:new Locomotion(u.x,u.z), model:model??undefined, minion, root, body, ...bars, weapon, glow, facing: u.team === 0 ? Math.PI / 2 : -Math.PI / 2, kind: u.kind, hero: u.hero };
   }
   const destination = new THREE.Group(); scene.add(destination);
   ring(destination, 0xf6deb0, .44, .045, .15, .85);
   for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; const mark = box(destination, 0xf6deb0, Math.sin(a) * .63, .12, Math.cos(a) * .63, .1, .055, .19); mark.rotation.y = a; }
-  interface FX { root: THREE.Group; ring: THREE.Mesh; motes: THREE.Mesh[]; initialLife: number; }
-  const effects = new Map<Effect, FX>();
-  const projectileView=new ProjectileView(scene);
-  const fxMaterials = [0x6be6ff, 0xff7aab, 0x78efb6].map(color => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .65, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+  const combatFx = new CombatFx(scene);
+  const damageNumbers = new DamageNumbers(container);
+  const projectileView = new ProjectileView(scene);
   const selection = new THREE.Group(); scene.add(selection); ring(selection, 0xffe3a0, 1.08, .035, .1, 1.1);
-  const effectRingGeo = geo(new THREE.RingGeometry(.84, 1, 48));
-  const active = new Set<number>(); const fxActive = new Set<Effect>();
+  const active = new Set<number>();
   let elapsed = 0; let lastState:State|undefined;
   let surface = container;
   function resize() {
@@ -328,8 +325,8 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       visuals.forEach(v => { v.model?.dispose(); scene.remove(v.root); });
       visuals.clear();
       projectileView.clear();
-      for (const fx of effects.values()) scene.remove(fx.root);
-      effects.clear();
+      combatFx.clear();
+      damageNumbers.clear();
       const player = s.units.find(u => u.id === s.playerId);
       if (player) focus.set(player.x * .28, 0, player.z * .28);
       lastState = s;
@@ -360,6 +357,7 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
         const dx = action.x - u.x, dz = action.z - u.z;
         if (Math.hypot(dx, dz) > .001) v.facing = Math.atan2(dx,dz);
         v.model?.play(action.kind);
+        if (action.kind === 'attack') v.minion?.attack();
       }
       v.actionSequence=action?.sequence;
       if (!newAction&&displaced) v.facing = Math.atan2(dx, dz);
@@ -374,7 +372,10 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       const speed = frame > 0 ? Math.hypot(renderDx, renderDz) / frame : 0;
       v.speed += (speed - v.speed) * smoothing(10,frame);
       if(v.model){v.model.update(moving?'run':'idle',frame,gaitRate(v.speed));}
-      else if (u.kind === 'hero' || u.kind === 'minion' || u.kind === 'dummy') {
+      else if (v.minion) {
+        v.minion.root.position.y = Math.hypot(v.root.position.x, v.root.position.z) < 5.3 ? .088 : 0;
+        v.minion.update(v.speed,frame);
+      } else if (u.kind === 'hero' || u.kind === 'dummy') {
         v.stride += Math.min(v.speed, 8) * frame * 2.2;
         const strideWeight = Math.min(v.speed / 2, 1);
         const step = Math.sin(v.stride + u.id);
@@ -394,24 +395,9 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
     selection.visible = !!player?.alive;
     if (player) { const position = visuals.get(player.id)?.root.position ?? player; selection.position.set(position.x, 0, position.z); selection.scale.setScalar(1 + Math.sin(elapsed * 3) * .025); }
     if (player?.dest) { destination.position.set(player.dest.x, 0, player.dest.z); destination.rotation.y = elapsed * .6; destination.scale.setScalar(1 + Math.sin(elapsed * 6) * .07); }
-    fxActive.clear();
-    for (const e of s.effects) {
-      fxActive.add(e); let fx = effects.get(e);
-      if (!fx) {
-        const root = new THREE.Group(); root.position.set(e.x, .15, e.z); scene.add(root);
-        const r = mesh(root, effectRingGeo, fxMaterials[e.kind === 'heal' ? 2 : e.team === 0 ? 0 : 1], 0, 0, 0); r.rotation.x = -Math.PI / 2; r.castShadow = false;
-        const motes: THREE.Mesh[] = [];
-        for (let i = 0; i < (e.kind === 'attack' ? 0 : 7); i++) { const p = mesh(root, crystalGeo, mat(e.kind === 'heal' ? 0xa8ffd1 : e.team === 0 ? 0xb7f4ff : 0xffb2ce, .2, .2, 1.2), 0, 0, 0, .09, .24, .09); p.castShadow = false; motes.push(p); }
-        fx = { root, ring: r, motes, initialLife: e.life }; effects.set(e, fx);
-      }
-      const r = Math.max(.3, e.radius); const progress = 1 - Math.max(0, e.life / fx.initialLife); const pulse = .65 + progress * .4;
-      fx.root.scale.setScalar(Math.min(1, Math.max(.05, e.life * 9)));
-      const height = e.kind === 'ultimate' ? 3.1 : e.kind === 'heal' ? 1.7 : .9;
-      fx.ring.scale.set(r * pulse, r * pulse, 1);
-      fx.root.rotation.y = elapsed * .4;
-      for (let i = 0; i < fx.motes.length; i++) { const a = i * Math.PI * 2 / fx.motes.length + elapsed; const p = fx.motes[i]; p.position.set(Math.cos(a) * r * .8, .25 + Math.abs(Math.sin(a * 2 + elapsed * 5)) * height, Math.sin(a) * r * .8); p.rotation.y = elapsed * 3; }
-    }
-    for (const [e, fx] of effects) if (!fxActive.has(e)) { scene.remove(fx.root); effects.delete(e); }
+    combatFx.update(s.effects,frame);
+    camera.updateMatrixWorld();
+    damageNumbers.update(s.damageEvents,s.time,frame,camera,container.clientWidth,container.clientHeight);
     projectileView.update(s.projectiles,s.tick,frame);
     renderer.render(scene, camera);
   }
@@ -430,6 +416,6 @@ export function createRenderer(container: HTMLElement,quality:Quality='balanced'
       return { x: THREE.MathUtils.clamp(intersection.x, -36, 36), z: THREE.MathUtils.clamp(intersection.z, -8, 8) };
     },
     zoom(delta) { distance = THREE.MathUtils.clamp(distance + delta * .018, 28, 65); },
-    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial, ...fxMaterials].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
+    dispose() { disposed = true; tower?.dispose(); projectileView.dispose(); combatFx.dispose(); damageNumbers.dispose(); laneMinions.dispose(); showcase.clear(); visuals.forEach(v=>v.model?.dispose()); models.dispose(); observer.disconnect(); tiles.dispose(); leaves.dispose(); rocks.dispose(); geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); [hpBg, hpAlly, hpEnemy, manaMaterial].forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); }
   };
 }

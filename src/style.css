@@ -39,3 +39,57 @@
   cursor: not-allowed;
   transform: none;
 }
+
+.damage-numbers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.damage-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #fff4d8;
+  white-space: nowrap;
+  font: 800 clamp(15px, 2.2vw, 22px)/1 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 2px #08101b;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 3px #08101b;
+}
+.damage-number.ability { color: #ffdc8d; font-size: clamp(20px, 3.1vw, 29px); }
+.damage-number.incoming { color: #ffacaa; }
+
+.prism-portrait {
+  position: relative;
+  display: block;
+  color: #95e9f3;
+  background: radial-gradient(ellipse at 52% 40%, #3d8ba855, transparent 57%);
+}
+.prism-portrait i, .prism-portrait b, .prism-portrait span {
+  position: absolute;
+  display: block;
+}
+.prism-portrait i {
+  inset: 39% 10% 10%;
+  clip-path: polygon(50% 0, 90% 18%, 100% 68%, 76% 100%, 22% 100%, 0 68%, 9% 20%);
+  background: linear-gradient(130deg, #bcdae0 8%, #285267 45%, #102737 62%, #83b9be 73%, #183644 88%);
+}
+.prism-portrait b {
+  inset: 16% 31% 43%;
+  clip-path: polygon(50% 0, 82% 18%, 100% 52%, 81% 81%, 50% 100%, 21% 81%, 0 53%, 18% 18%);
+  background: linear-gradient(150deg, #b3e5eb, #386b83 35%, #142d40 63%);
+}
+.prism-portrait span {
+  inset: 35% 35% 53%;
+  clip-path: polygon(0 0, 50% 36%, 100% 0, 80% 65%, 50% 100%, 21% 66%);
+  background: #b7f6fc;
+}
+.mini-art.prism-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  clip-path: none;
+}
