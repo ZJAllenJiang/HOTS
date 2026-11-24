@@ -6,7 +6,7 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 const entryTag = /<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"[^>]*>\s*<\/script\s*>/gi;
 const styleTag = /<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]+)"[^>]*>/gi;
 const assetUrl = /(?<=["'`(])\/models\/[\w./-]+(?=["'`)])/g;
-const modelTypes = new Map([['.glb', 'model/gltf-binary'], ['.png', 'image/png']]);
+const modelTypes = new Map([['.glb', 'model/gltf-binary'], ['.png', 'image/png'], ['.webp', 'image/webp']]);
 
 const offlinePolicy = [
   "default-src 'none'",

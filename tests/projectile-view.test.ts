@@ -23,9 +23,11 @@ it('releases visual state on reset even when a new match reuses projectile IDs',
 it('keeps release focus at the rendered caster and joins the authoritative flight without snapping backward',()=>{
  const scene=new THREE.Scene(),view=new ProjectileView(scene);
  const p:Projectile={id:2,sourceId:1,team:0,hero:'ranger',x:0,z:0,dirX:1,dirZ:0,launchTick:3,distanceRemaining:14};
- const release=()=>({x:.8,y:1.5,z:.2});
+ let anchor={x:.7,y:1.5,z:.3};
+ const release=()=>anchor;
  view.update([p],2,0,[],release);const root=scene.children[0];
- expect(root.position.toArray()).toEqual([.8,1.5,.2]);
+ expect(root.position.toArray()).toEqual([.7,1.5,.3]);
+ anchor={x:.8,y:1.5,z:.2};
  view.update([p],3,.025,[],release);
  expect(root.position.toArray()).toEqual([.8,1.5,.2]);
  p.x=1.2;view.update([p],4,.05,[],release);
