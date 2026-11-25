@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {describe, expect, it} from 'vitest';
 import {createRangerArt} from '../src/ranger-art';
 
-describe('Grayharbor pathfinder art', () => {
+describe('Valla character art', () => {
   it('shares its compact untextured kit while every actor owns its pose', () => {
     const art = createRangerArt(), first = art.instantiate(), second = art.instantiate();
     const meshes: THREE.Mesh[] = [];
