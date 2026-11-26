@@ -109,7 +109,7 @@ export class ProjectileView {
       root, charge, bolt, terminalTrail,
       from: root.position.clone(), target: root.position.clone(), origin: root.position.clone(),
       releaseOffset: new THREE.Vector3(), tick, blend: 1,
-      launched: tick >= projectile.launchTick, releaseAge: 0,
+      launched: tick > projectile.launchTick, releaseAge: 0,
     };
   }
 
@@ -144,11 +144,17 @@ export class ProjectileView {
         if (releasing) {
           view.launched = true;
           view.releaseAge = 0;
+          // Sample the committed release pose, not the preceding windup frame.
+          const release = tick === projectile.launchTick ? releasePosition?.(projectile) : undefined;
+          if (release) {
+            view.root.position.set(release.x, release.y, release.z);
+            view.releaseOffset.copy(view.root.position).sub(view.origin);
+          }
         } else view.releaseAge += frame;
         if (view.tick !== tick || releasing) {
           view.from.copy(view.root.position);
           view.target.set(projectile.x, 1.2, projectile.z);
-          // A hand/bow release joins the authoritative path gradually, avoiding
+          // A weapon release joins the authoritative path gradually, avoiding
           // a jump back to the caster's centre on the launch tick.
           const travel = view.target.distanceTo(view.origin);
           view.target.addScaledVector(view.releaseOffset, Math.max(0, 1 - travel / RELEASE_BLEND_DISTANCE));

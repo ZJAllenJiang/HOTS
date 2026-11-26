@@ -78,3 +78,15 @@ Static arena profiling counted 181 meshes and 176 shadow casters before batching
 Prism Rain commits its target at cast time and marks the hit area for 0.35 seconds. The burst checks who is inside at impact, deals 180 base damage, and slows surviving enemy heroes and lane minions by 40% for 1.5 seconds. Brief hit markers follow actual HP loss. The effect budget prioritizes the player's skills and visible area warnings. The HUD explains rejected casts, and training allows all four skills from level one.
 
 The original frost caster and guardian use larger tailored surfaces. The caster's hood, mantle, and staff distinguish the role at arena zoom, and the guardian has curved shield panels, sculpted pauldrons, and a closed helmet. Design references were Riot's [Clarity in League](https://www.leagueoflegends.com/en-au/news/dev/clarity-in-league/), Blizzard's [Diablo IV character art discussion](https://news.blizzard.com/en-us/article/23665024/diablo-iv-quarterly-updatejune-2021), and the [Lost Ark Sorceress overview](https://www.playlostark.com/en-gb/news/articles/december-team-update-sorceress).
+
+## Grayharbor Pathfinder
+
+The ranger slot uses an original coastal pathfinder with an uncovered face, asymmetrical cape, and two compact crossbows. The runtime builds the model from shared geometry and poses each instance independently. Q samples the active right-hand muzzle on the launch tick. Combat rules stay in the simulation.
+
+The [creator-generalist modeling and rig guidance](https://github.com/codepawl/creator-generalist/tree/11cf193a6e6ec385f46cb86c091081b7131f8e52/plugins/3d-generalist/skills) informed the silhouette, weapon contact, and shot review. Inspect the actual geometry at portrait and arena camera distances. Check idle, grounded run, alternating attacks, and the Q pose with both weapons attached.
+
+Export the playable hero as a self-contained glTF asset with baked object animations for separate review in Blender or a glTF viewer.
+
+```sh
+node_modules/.bin/vite-node tools/export-hunter.mjs -- grayharbor-hunter.glb
+```
